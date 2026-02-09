@@ -32,14 +32,18 @@
     "plugins": [
       "expo-router",
       "expo-localization",
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "http://10.123.215.5:4000"
+      "apiUrl": "https://api.alzahaby.cloud",
+      "router": {},
+      "eas": {
+        "projectId": "d5fa8407-1d56-4fd6-aba9-394ee295c874"
+      }
     }
   }
 }
-

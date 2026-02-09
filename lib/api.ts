@@ -225,6 +225,18 @@ export const api = {
           }),
         });
 
+        // Check if response is actually JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Non-JSON response received:', text.substring(0, 500));
+          throw new Error(
+            `Server returned non-JSON response (${response.status}). ` +
+            `This usually means the API endpoint is not found or the server is not running. ` +
+            `URL: ${API_URL}/trpc/auth.login`
+          );
+        }
+
         const responseData = await response.json();
         // Debug: console.log('Login response:', JSON.stringify(responseData, null, 2));
 
@@ -301,6 +313,17 @@ export const api = {
         });
 
         clearTimeout(timeoutId);
+
+        // Check if response is actually JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Non-JSON response from auth.me:', text.substring(0, 500));
+          throw new Error(
+            `Server returned non-JSON response (${response.status}). ` +
+            `URL: ${API_URL}/trpc/auth.me`
+          );
+        }
 
         if (!response.ok) {
           throw new Error('Failed to get user');
