@@ -132,8 +132,8 @@ export default function InventoryScreen() {
           setCurrentWarehouseId(undefined);
           setCurrentShelfId(undefined);
           
-          const allWarehouses = warehouses.length > 0 ? warehouses : await api.inventory.warehouses(user.branchId);
-          const allShelves = shelves.length > 0 ? shelves : await api.inventory.shelves(user.branchId);
+          const allWarehouses = warehouses.length > 0 ? warehouses : await api.inventory.warehouses();
+          const allShelves = shelves.length > 0 ? shelves : await api.inventory.shelves();
           
           // Aggregate stock from all warehouses
           const allStock: any[] = [];

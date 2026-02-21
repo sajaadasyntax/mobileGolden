@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Image,
 } from 'react-native';
 import { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +15,8 @@ import { useAuthStore } from '@/stores/auth';
 import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { t } from '@/lib/i18n';
+
+const logo = require('@/assets/logo.jpeg');
 
 interface MenuSection {
   title: string;
@@ -77,6 +80,8 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
             { icon: 'wallet-outline', label: t('liquidAssets', locale), route: '/(drawer)/liquid-assets' },
             { icon: 'receipt-outline', label: t('outstandingInvoices', locale), route: '/(drawer)/outstanding-invoices' },
             { icon: 'card-outline', label: t('expenses', locale), route: '/(drawer)/expenses' },
+            { icon: 'business-outline', label: t('bankTransactions', locale), route: '/(drawer)/bank-transactions' },
+            { icon: 'card-outline', label: t('bankPayment', locale), route: '/(drawer)/bank-payment' },
           ],
         },
         {
@@ -90,6 +95,7 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
           title: t('reports', locale),
           items: [
             { icon: 'bar-chart-outline', label: t('monthlyReports', locale), route: '/(drawer)/reports' },
+            { icon: 'stats-chart-outline', label: locale === 'ar' ? 'تقرير مبيعات المستخدمين' : 'User Sales Report', route: '/(drawer)/user-sales-report' },
           ],
         },
         {
@@ -117,6 +123,7 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
         {
           title: t('generalSection', locale),
           items: [
+            { icon: 'card-outline', label: t('bankPayment', locale), route: '/(drawer)/bank-payment' },
             { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
           ],
         },
@@ -139,6 +146,8 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
             { icon: 'wallet-outline', label: t('liquidAssets', locale), route: '/(drawer)/liquid-assets' },
             { icon: 'receipt-outline', label: t('outstandingInvoices', locale), route: '/(drawer)/outstanding-invoices' },
             { icon: 'card-outline', label: t('expenses', locale), route: '/(drawer)/expenses' },
+            { icon: 'business-outline', label: t('bankTransactions', locale), route: '/(drawer)/bank-transactions' },
+            { icon: 'card-outline', label: t('bankPayment', locale), route: '/(drawer)/bank-payment' },
           ],
         },
         {
@@ -183,6 +192,7 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
         {
           title: t('generalSection', locale),
           items: [
+            { icon: 'card-outline', label: t('bankPayment', locale), route: '/(drawer)/bank-payment' },
             { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
           ],
         },
@@ -206,6 +216,7 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
         {
           title: t('generalSection', locale),
           items: [
+            { icon: 'card-outline', label: t('bankPayment', locale), route: '/(drawer)/bank-payment' },
             { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
           ],
         },
@@ -218,6 +229,7 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
         title: t('generalSection', locale),
         items: [
           { icon: 'grid-outline', label: t('dashboard', locale), route: '/(drawer)/dashboard' },
+          { icon: 'card-outline', label: t('bankPayment', locale), route: '/(drawer)/bank-payment' },
           { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
         ],
       },
@@ -247,20 +259,11 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
       backgroundColor: theme.drawerHeader,
       borderBottomColor: theme.drawerBorder,
     },
-    avatar: {
-      backgroundColor: theme.primaryBackground,
-    },
     userName: {
       color: theme.text,
     },
     userEmail: {
       color: theme.textSecondary,
-    },
-    branchBadge: {
-      backgroundColor: theme.primaryBackground,
-    },
-    branchText: {
-      color: theme.primary,
     },
     sectionTitle: {
       color: theme.primary,
@@ -293,19 +296,10 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
     <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top', 'bottom']}>
       {/* User Header */}
       <View style={[styles.header, dynamicStyles.header]}>
-        <View style={[styles.avatar, dynamicStyles.avatar, isRtl && styles.avatarRtl]}>
-          <Ionicons name="person" size={28} color={theme.primary} />
-        </View>
+        <Image source={logo} style={styles.drawerLogo} />
         <View style={[styles.userInfo, isRtl && styles.userInfoRtl]}>
           <Text style={[styles.userName, dynamicStyles.userName, isRtl && styles.textRtl]}>{user?.name}</Text>
           <Text style={[styles.userEmail, dynamicStyles.userEmail, isRtl && styles.textRtl]}>{user?.email}</Text>
-          {user?.branch && (
-            <View style={[styles.branchBadge, dynamicStyles.branchBadge]}>
-              <Text style={[styles.branchText, dynamicStyles.branchText]}>
-                {locale === 'ar' ? user.branch.nameAr : user.branch.name}
-              </Text>
-            </View>
-          )}
         </View>
       </View>
 
@@ -383,17 +377,11 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     borderBottomWidth: 1,
   },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
+  drawerLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     marginRight: 12,
-  },
-  avatarRtl: {
-    marginRight: 0,
-    marginLeft: 12,
   },
   userInfo: {
     flex: 1,
@@ -409,12 +397,6 @@ const styles = StyleSheet.create({
   userEmail: {
     fontSize: 13,
     marginBottom: 8,
-  },
-  branchBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
   },
   branchText: {
     fontSize: 11,

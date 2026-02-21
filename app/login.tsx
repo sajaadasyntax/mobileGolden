@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,8 @@ import { useAuthStore } from '@/stores/auth';
 import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { t } from '@/lib/i18n';
+
+const logo = require('@/assets/logo.jpeg');
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -68,9 +71,7 @@ export default function LoginScreen() {
         <View style={styles.content}>
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <View style={[styles.logo, { backgroundColor: theme.primary }]}>
-              <Ionicons name="cube" size={40} color="#fff" />
-            </View>
+            <Image source={logo} style={styles.logo} />
             <Text style={[styles.appName, { color: theme.text }]}>{t('appName', locale)}</Text>
           </View>
 
@@ -157,11 +158,9 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 100,
+    height: 100,
+    borderRadius: 24,
     marginBottom: 16,
   },
   appName: {

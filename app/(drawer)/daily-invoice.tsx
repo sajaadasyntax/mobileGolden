@@ -18,6 +18,12 @@ import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
 import { api } from '@/lib/api';
+import {
+  Invoice,
+  InvoiceItem as InvoiceItemType,
+  generateInvoiceNumber,
+} from '@/lib/invoice';
+import InvoicePreview from '@/components/InvoicePreview';
 
 interface SaleItem {
   id: string;
@@ -76,6 +82,8 @@ export default function DailyInvoiceScreen() {
   const [dayCycle, setDayCycle] = useState<any>(null);
   const [dailyAggregate, setDailyAggregate] = useState<any>(null);
   const [shelfId, setShelfId] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [lastInvoice, setLastInvoice] = useState<Invoice | null>(null);
 
   const invoiceTotal = invoiceItems.reduce((sum, item) => sum + item.total, 0);
   const invoiceTotalSdg = invoiceItems.reduce((sum, item) => sum + item.totalSdg, 0);
@@ -84,12 +92,12 @@ export default function DailyInvoiceScreen() {
   // Load backend data on mount
   useEffect(() => {
     loadInitialData();
-  }, [user?.branchId]);
+  }, [user]);
 
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      if (!user?.branchId) return;
+      if (!user) return;
       
       // Get day cycle and exchange rate
       const cycle = await api.dayCycle.getCurrent(user.branchId);
@@ -137,7 +145,7 @@ export default function DailyInvoiceScreen() {
 
   const loadAvailableItems = async (currentShelfId?: string) => {
     try {
-      if (!user?.branchId) return;
+      if (!user) return;
       
       const shelfToUse = currentShelfId || shelfId;
       if (!shelfToUse) return;
@@ -397,16 +405,61 @@ export default function DailyInvoiceScreen() {
         }
       }
 
+      const builtInvoice: Invoice = {
+        invoiceNumber: generateInvoiceNumber('SALES'),
+        invoiceType: 'SALES',
+        invoiceCategory: 'RETAIL',
+        invoiceDate: new Date().toISOString(),
+        branchId: user?.branchId || '',
+        items: invoiceItems.map((it) => ({
+          id: it.id,
+          itemId: it.itemId,
+          name: it.name,
+          nameAr: it.nameAr,
+          sku: it.sku,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          unitPriceSdg: it.unitPriceSdg,
+          total: it.total,
+          totalSdg: it.totalSdg,
+          unit: it.unit,
+        })),
+        subtotal: invoiceTotal,
+        subtotalSdg: invoiceTotalSdg,
+        discount: 0,
+        discountSdg: 0,
+        tax: 0,
+        taxSdg: 0,
+        total: invoiceTotal,
+        totalSdg: invoiceTotalSdg,
+        exchangeRate,
+        paymentStatus: 'PAID',
+        paymentMethod: paymentMethod === 'MIXED' ? 'MIXED' : paymentMethod === 'CARD' ? 'BANK_TRANSFER' : 'CASH',
+        amountPaid: invoiceTotal,
+        amountPaidSdg: invoiceTotalSdg,
+        amountDue: 0,
+        amountDueSdg: 0,
+        notes: `Daily aggregate sale - ${paymentMethod}`,
+        createdAt: new Date().toISOString(),
+      };
+
+      setLastInvoice(builtInvoice);
+      setShowCheckout(false);
+
       Alert.alert(
         t('success', locale), 
         t('invoiceClosed', locale),
-        [{ text: 'OK', onPress: () => {
-          setInvoiceItems([]);
-          setShowCheckout(false);
-          setCashReceived('');
-          setCardReceived('');
-          loadInitialData(); // Refresh data
-        }}]
+        [
+          { text: locale === 'ar' ? 'معاينة الفاتورة' : 'View Invoice', onPress: () => {
+            setShowPreview(true);
+          }},
+          { text: 'OK', onPress: () => {
+            setInvoiceItems([]);
+            setCashReceived('');
+            setCardReceived('');
+            loadInitialData();
+          }},
+        ]
       );
     } catch (error: any) {
       Alert.alert(
@@ -827,6 +880,21 @@ export default function DailyInvoiceScreen() {
           </View>
         </View>
       </Modal>
+
+      {lastInvoice && (
+        <InvoicePreview
+          visible={showPreview}
+          onClose={() => {
+            setShowPreview(false);
+            setInvoiceItems([]);
+            setCashReceived('');
+            setCardReceived('');
+            loadInitialData();
+          }}
+          invoice={lastInvoice}
+          options={{ locale: locale as 'en' | 'ar', includePaymentDetails: true }}
+        />
+      )}
     </View>
   );
 }

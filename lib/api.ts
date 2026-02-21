@@ -209,6 +209,31 @@ async function trpcMutation<T>(endpoint: string, data: object): Promise<T> {
   return result.result?.data?.json || result.result?.data || result;
 }
 
+// Upload receipt image
+export async function uploadReceipt(uri: string): Promise<string> {
+  const token = await getToken();
+  const formData = new FormData();
+  const filename = uri.split('/').pop() || 'receipt.jpg';
+  const match = /\.(\w+)$/.exec(filename);
+  const type = match ? `image/${match[1]}` : 'image/jpeg';
+  formData.append('receipt', { uri, name: filename, type } as any);
+
+  const response = await fetch(`${API_URL}/upload/receipt`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to upload receipt');
+  }
+
+  const result = await response.json();
+  return result.url;
+}
+
 // tRPC-style API calls
 export const api = {
   auth: {
@@ -793,6 +818,13 @@ export const api = {
           branchId,
           ...(asOfDate && { asOfDate }),
         }),
+
+      userSalesProfit: (options?: { dateFrom?: string; dateTo?: string; userId?: string }) =>
+        trpcQuery<any>('accounting.reports.userSalesProfit', {
+          ...(options?.dateFrom && { dateFrom: options.dateFrom }),
+          ...(options?.dateTo && { dateTo: options.dateTo }),
+          ...(options?.userId && { userId: options.userId }),
+        }),
     },
     
     // Budget
@@ -901,6 +933,34 @@ export const api = {
         trpcMutation<any>('accounting.supplierInvoices.updateStatus', { id, status: 'PAID' }),
     },
     
+    // Bank Accounts
+    bankAccounts: {
+      list: () => trpcQuery<any>('accounting.bankAccounts.list'),
+      create: (data: { bankName: string; bankNameAr?: string; accountNumber: string; iban?: string }) =>
+        trpcMutation<any>('accounting.bankAccounts.create', data),
+      update: (data: { id: string; bankName?: string; bankNameAr?: string; accountNumber?: string; iban?: string; isActive?: boolean }) =>
+        trpcMutation<any>('accounting.bankAccounts.update', data),
+      delete: (id: string) => trpcMutation<any>('accounting.bankAccounts.delete', { id }),
+    },
+
+    // Bank Payments
+    bankPayments: {
+      submit: (data: { bankAccountId: string; amountSdg: number; transactionId?: string; receiptImageUrl: string; description?: string }) =>
+        trpcMutation<any>('accounting.bankPayments.submit', data),
+      list: (options?: { status?: string; userId?: string; bankAccountId?: string; startDate?: string; endDate?: string; page?: number; pageSize?: number }) =>
+        trpcQuery<any>('accounting.bankPayments.list', {
+          page: options?.page || 1,
+          pageSize: options?.pageSize || 20,
+          ...(options?.status && { status: options.status }),
+          ...(options?.userId && { userId: options.userId }),
+          ...(options?.bankAccountId && { bankAccountId: options.bankAccountId }),
+          ...(options?.startDate && { startDate: options.startDate }),
+          ...(options?.endDate && { endDate: options.endDate }),
+        }),
+      updateStatus: (id: string, status: 'APPROVED' | 'REJECTED') =>
+        trpcMutation<any>('accounting.bankPayments.updateStatus', { id, status }),
+    },
+
     // Outstanding Invoices (for mobile screen)
     outstandingInvoices: {
       list: async (branchId: string, type?: 'RECEIVABLE' | 'PAYABLE') => {

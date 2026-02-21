@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -15,19 +16,33 @@ import { useThemeStore } from '@/stores/theme';
 import { t } from '@/lib/i18n';
 import { api } from '@/lib/api';
 
+const logo = require('@/assets/logo.jpeg');
+
 export default function DashboardScreen() {
   const { user } = useAuthStore();
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
   const [refreshing, setRefreshing] = useState(false);
   const [dayCycle, setDayCycle] = useState<any>(null);
+  const [summary, setSummary] = useState<any>(null);
   const isRtl = locale === 'ar';
+  const isAdmin = ['ADMIN', 'MANAGER'].includes(user?.role || '');
 
   const loadData = async () => {
     try {
-      if (user?.branchId) {
-        const cycle = await api.dayCycle.getCurrent(user.branchId);
-        setDayCycle(cycle);
+      if (user) {
+        try {
+          const cycle = await api.dayCycle.getCurrent(user.branchId);
+          setDayCycle(cycle);
+        } catch {
+          // branchId may be null or day cycle unavailable
+        }
+        if (isAdmin && user.branchId) {
+          try {
+            const dash = await api.accounting.reports.dashboard(user.branchId);
+            setSummary(dash);
+          } catch { /* ignore */ }
+        }
       }
     } catch (error) {
       // Day might not be open
@@ -42,6 +57,10 @@ export default function DashboardScreen() {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
+  };
+
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat(locale === 'ar' ? 'ar-SA' : 'en-US').format(amount);
   };
 
   // Quick actions based on user role
@@ -91,9 +110,10 @@ export default function DashboardScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
       }
     >
-      {/* Simple Header */}
+      {/* Header with Logo */}
       <View style={[styles.header, isRtl && styles.headerRtl]}>
-        <View>
+        <Image source={logo} style={styles.headerLogo} />
+        <View style={{ flex: 1 }}>
           <Text style={[styles.greeting, { color: theme.textSecondary }, isRtl && styles.textRtl]}>
             {t('welcomeBack', locale)}
           </Text>
@@ -101,14 +121,33 @@ export default function DashboardScreen() {
             {user?.name}
           </Text>
         </View>
-        {user?.branch && (
-          <View style={[styles.branchBadge, { backgroundColor: theme.primaryBackground }]}>
-            <Text style={[styles.branchText, { color: theme.primary }]}>
-              {isRtl ? user.branch.nameAr : user.branch.name}
-            </Text>
-          </View>
-        )}
       </View>
+
+      {/* Today's Summary (Admin/Manager) */}
+      {isAdmin && summary && (
+        <View style={styles.summarySection}>
+          <Text style={[styles.sectionTitle, { color: theme.text }, isRtl && styles.textRtl]}>
+            {locale === 'ar' ? 'ملخص اليوم' : "Today's Summary"}
+          </Text>
+          <View style={styles.summaryGrid}>
+            <View style={[styles.summaryCard, { backgroundColor: theme.success + '15' }]}>
+              <Ionicons name="trending-up" size={22} color={theme.success} />
+              <Text style={[styles.summaryValue, { color: theme.success }]}>{formatAmount(summary.todaySales || 0)}</Text>
+              <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>{locale === 'ar' ? 'المبيعات' : 'Sales'}</Text>
+            </View>
+            <View style={[styles.summaryCard, { backgroundColor: theme.error + '15' }]}>
+              <Ionicons name="trending-down" size={22} color={theme.error} />
+              <Text style={[styles.summaryValue, { color: theme.error }]}>{formatAmount(summary.todayExpenses || 0)}</Text>
+              <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>{locale === 'ar' ? 'المصروفات' : 'Expenses'}</Text>
+            </View>
+            <View style={[styles.summaryCard, { backgroundColor: theme.primary + '15' }]}>
+              <Ionicons name="stats-chart" size={22} color={theme.primary} />
+              <Text style={[styles.summaryValue, { color: theme.primary }]}>{formatAmount((summary.todaySales || 0) - (summary.todayExpenses || 0))}</Text>
+              <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>{locale === 'ar' ? 'الربح' : 'Profit'}</Text>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Day Status Card - Simple */}
       <TouchableOpacity
@@ -183,12 +222,17 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 24,
+    gap: 14,
   },
   headerRtl: {
     flexDirection: 'row-reverse',
+  },
+  headerLogo: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
   },
   greeting: {
     fontSize: 14,
@@ -198,14 +242,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 4,
   },
-  branchBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+  summarySection: {
+    marginBottom: 20,
   },
-  branchText: {
-    fontSize: 12,
-    fontWeight: '600',
+  summaryGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  summaryCard: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+    gap: 6,
+  },
+  summaryValue: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  summaryLabel: {
+    fontSize: 11,
   },
   dayStatusCard: {
     borderRadius: 16,

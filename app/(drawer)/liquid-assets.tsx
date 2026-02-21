@@ -66,23 +66,25 @@ export default function LiquidAssetsScreen() {
 
   useEffect(() => {
     loadData();
-  }, [user?.branchId]);
+  }, [user]);
 
   const loadData = async () => {
     try {
-      if (!user?.branchId) return;
+      if (!user) return;
       
       // Load liquid assets from accounting API
       const assetsResult = await api.accounting.reports.liquidAssets(user.branchId);
       
+      let mappedAccounts: AssetAccount[] = [];
       if (assetsResult?.accounts) {
-        setAccounts(assetsResult.accounts.map((acc: any) => ({
+        mappedAccounts = assetsResult.accounts.map((acc: any) => ({
           id: acc.account?.id || acc.id,
           name: acc.account?.nameEn || acc.name || 'Unknown',
           nameAr: acc.account?.nameAr || acc.nameAr,
           balance: Number(acc.balanceSdg || acc.balance) || 0,
           accountType: acc.account?.accountType || acc.accountType || 'default',
-        })));
+        }));
+        setAccounts(mappedAccounts);
       }
       
       // Set inventory value
@@ -103,7 +105,7 @@ export default function LiquidAssetsScreen() {
       }
       
       // Find capital account (code "3000" or equity account)
-      const capitalAccount = accounts.find(
+      const capitalAccount = mappedAccounts.find(
         acc => acc.accountType === 'EQUITY' || 
         acc.name.toLowerCase().includes('equity') || 
         acc.name.toLowerCase().includes('capital')

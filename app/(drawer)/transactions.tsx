@@ -49,11 +49,11 @@ export default function TransactionsScreen() {
 
   useEffect(() => {
     loadTransactions();
-  }, [user?.branchId]);
+  }, [user]);
 
   const loadTransactions = async () => {
     try {
-      if (!user?.branchId) return;
+      if (!user) return;
       
       const result = await api.accounting.transactions.list(user.branchId, { pageSize: 50 });
       const data = result?.data || result || [];

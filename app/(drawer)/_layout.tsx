@@ -121,6 +121,14 @@ function DrawerLayout() {
         options={({ route }) => ({ title: t('expenses', locale) })}
       />
       <Drawer.Screen
+        name="bank-transactions"
+        options={({ route }) => ({ title: t('bankTransactions', locale) })}
+      />
+      <Drawer.Screen
+        name="bank-payment"
+        options={({ route }) => ({ title: t('bankPayment', locale) })}
+      />
+      <Drawer.Screen
         name="budget"
         options={({ route }) => ({ title: t('budget', locale) })}
       />
@@ -177,6 +185,10 @@ function DrawerLayout() {
       <Drawer.Screen
         name="reports"
         options={({ route }) => ({ title: t('reports', locale) })}
+      />
+      <Drawer.Screen
+        name="user-sales-report"
+        options={({ route }) => ({ title: locale === 'ar' ? 'تقرير مبيعات المستخدمين' : 'User Sales Report' })}
       />
       
       {/* Invoice Creation Screens */}

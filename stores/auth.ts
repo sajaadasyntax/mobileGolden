@@ -77,7 +77,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const user = result?.user || result;
       
       // Validate that we actually got user data
-      if (!user || !user.id || !user.branchId) {
+      if (!user || !user.id) {
         console.log('Invalid user data received:', result);
         await removeToken();
         set({ user: null, isAuthenticated: false, isLoading: false });
