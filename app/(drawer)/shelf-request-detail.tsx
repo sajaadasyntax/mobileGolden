@@ -75,6 +75,7 @@ export default function ShelfRequestDetailScreen() {
   const [request, setRequest] = useState<GoodsRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isDayOpen, setIsDayOpen] = useState(true);
   
   // Issue mode state
   const [issueMode, setIssueMode] = useState(false);
@@ -93,10 +94,12 @@ export default function ShelfRequestDetailScreen() {
   const loadRequest = async () => {
     try {
       setLoading(true);
-      const [requestData, warehousesData] = await Promise.all([
+      const [requestData, warehousesData, cycle] = await Promise.all([
         api.sales.goodsRequests.getById(id!),
         api.inventory.warehouses(),
+        user?.branchId ? api.dayCycle.getCurrent(user.branchId).catch(() => null) : Promise.resolve(null),
       ]);
+      setIsDayOpen(cycle?.status === 'OPEN');
       
       const mappedRequest = {
         ...requestData,
@@ -495,8 +498,17 @@ export default function ShelfRequestDetailScreen() {
             </View>
           ) : (
             <TouchableOpacity
-              style={[styles.issueButton, { backgroundColor: theme.primary }]}
-              onPress={() => setIssueMode(true)}
+              style={[styles.issueButton, { backgroundColor: isDayOpen ? theme.primary : theme.textMuted }]}
+              onPress={() => {
+                if (!isDayOpen) {
+                  Alert.alert(
+                    locale === 'ar' ? 'اليوم مغلق' : 'Day Closed',
+                    locale === 'ar' ? 'يجب فتح يوم العمل أولاً' : 'Please open the day cycle first'
+                  );
+                  return;
+                }
+                setIssueMode(true);
+              }}
             >
               <Ionicons name="arrow-up-circle-outline" size={20} color="#fff" />
               <Text style={styles.issueButtonText}>

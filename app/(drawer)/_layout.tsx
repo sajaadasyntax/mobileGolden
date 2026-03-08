@@ -233,6 +233,20 @@ function DrawerLayout() {
           drawerItemStyle: { display: 'none' },
         })}
       />
+      <Drawer.Screen
+        name="supplier-detail"
+        options={({ route }) => ({ 
+          title: locale === 'ar' ? 'تفاصيل المورد' : 'Supplier Details',
+          drawerItemStyle: { display: 'none' },
+        })}
+      />
+      <Drawer.Screen
+        name="product-stock-details"
+        options={({ route }) => ({ 
+          title: locale === 'ar' ? 'تفاصيل مخزون المنتج' : 'Product Stock Details',
+          drawerItemStyle: { display: 'none' },
+        })}
+      />
     </Drawer>
   );
 }

@@ -58,6 +58,7 @@ export default function ExpensesScreen() {
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isDayOpen, setIsDayOpen] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
   
@@ -77,12 +78,13 @@ export default function ExpensesScreen() {
     try {
       if (!user) return;
       
-      // Load expenses and categories in parallel
-      const [expensesResult, categoriesResult] = await Promise.all([
+      const [expensesResult, categoriesResult, cycle] = await Promise.all([
         api.accounting.expenses.list(user.branchId, { pageSize: 50 }),
         api.accounting.expenses.categories.list().catch(() => []),
+        user.branchId ? api.dayCycle.getCurrent(user.branchId).catch(() => null) : Promise.resolve(null),
       ]);
       
+      setIsDayOpen(cycle?.status === 'OPEN');
       setExpenses(expensesResult?.data || expensesResult || []);
       setCategories(categoriesResult || []);
     } catch (error) {
@@ -275,8 +277,17 @@ export default function ExpensesScreen() {
 
       {/* Add Expense Button */}
       <TouchableOpacity 
-        style={[styles.addButton, { backgroundColor: theme.primary }, isRtl && styles.addButtonRtl]}
-        onPress={() => setShowAddModal(true)}
+        style={[styles.addButton, { backgroundColor: isDayOpen ? theme.primary : theme.textMuted }, isRtl && styles.addButtonRtl]}
+        onPress={() => {
+          if (!isDayOpen) {
+            Alert.alert(
+              locale === 'ar' ? 'اليوم مغلق' : 'Day Closed',
+              locale === 'ar' ? 'يجب فتح يوم العمل أولاً لإضافة مصروف' : 'Please open the day cycle first to add an expense'
+            );
+            return;
+          }
+          setShowAddModal(true);
+        }}
       >
         <Ionicons name="add" size={24} color="#fff" />
         <Text style={styles.addButtonText}>

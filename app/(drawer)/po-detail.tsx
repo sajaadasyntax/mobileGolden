@@ -107,6 +107,7 @@ export default function PODetailScreen() {
   const [order, setOrder] = useState<PurchaseOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isDayOpen, setIsDayOpen] = useState(true);
   
   // Receive mode state
   const [receiveMode, setReceiveMode] = useState(false);
@@ -130,10 +131,12 @@ export default function PODetailScreen() {
   const loadOrder = async () => {
     try {
       setLoading(true);
-      const [orderData, warehousesData] = await Promise.all([
+      const [orderData, warehousesData, cycle] = await Promise.all([
         api.procurement.getOrderById(id!),
         user?.branchId ? api.inventory.warehouses(user.branchId) : Promise.resolve({ data: [] }),
+        user?.branchId ? api.dayCycle.getCurrent(user.branchId).catch(() => null) : Promise.resolve(null),
       ]);
+      setIsDayOpen(cycle?.status === 'OPEN');
       
       const mappedOrder = {
         ...orderData,
@@ -751,9 +754,15 @@ export default function PODetailScreen() {
             </View>
           ) : (
             <TouchableOpacity
-              style={[styles.receiveButton, { backgroundColor: theme.primary }]}
+              style={[styles.receiveButton, { backgroundColor: isDayOpen ? theme.primary : theme.textMuted }]}
               onPress={() => {
-                // Re-initialize receipt lines when entering receive mode
+                if (!isDayOpen) {
+                  Alert.alert(
+                    locale === 'ar' ? 'اليوم مغلق' : 'Day Closed',
+                    locale === 'ar' ? 'يجب فتح يوم العمل أولاً' : 'Please open the day cycle first'
+                  );
+                  return;
+                }
                 if (order) {
                   initReceiptLines(order.lines);
                 }

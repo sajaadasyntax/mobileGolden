@@ -47,80 +47,59 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
 
   // Build menu sections based on user role
   const getMenuSections = (): MenuSection[] => {
-    // Admin/Manager gets full access
+    // Admin/Manager - 4 clean sections
     if (ADMIN_ROLES.includes(userRole)) {
       return [
         {
-          title: t('operationsSection', locale),
+          title: locale === 'ar' ? 'الرئيسية' : 'Home',
           items: [
             { icon: 'grid-outline', label: t('dashboard', locale), route: '/(drawer)/dashboard' },
-            { icon: 'cube-outline', label: t('inventory', locale), route: '/(drawer)/inventory' },
-            { icon: 'pricetag-outline', label: t('prices', locale), route: '/(drawer)/prices' },
-            { icon: 'document-text-outline', label: t('procurementOrders', locale), route: '/(drawer)/procurement' },
-            { icon: 'cart-outline', label: t('salesOrders', locale), route: '/(drawer)/sales' },
-            { icon: 'layers-outline', label: t('shelfRequests', locale), route: '/(drawer)/shelf-requests' },
-            { icon: 'cash-outline', label: t('exchangeRateSetting', locale), route: '/(drawer)/exchange-rate' },
-            { icon: 'business-outline', label: t('suppliers', locale), route: '/(drawer)/suppliers' },
-            { icon: 'people-outline', label: t('customers', locale), route: '/(drawer)/customers' },
-            { icon: 'swap-horizontal-outline', label: t('transactions', locale), route: '/(drawer)/transactions' },
           ],
         },
         {
-          title: locale === 'ar' ? 'فواتير الموردين' : 'Supplier Invoices',
+          title: locale === 'ar' ? 'العمليات' : 'Operations',
           items: [
-            { icon: 'documents-outline', label: t('allInvoices', locale), route: '/(drawer)/all-invoices' },
-            { icon: 'time-outline', label: t('deferredInvoices', locale), route: '/(drawer)/deferred-invoices' },
-            { icon: 'calendar-outline', label: t('scheduledPayments', locale), route: '/(drawer)/payment-schedule' },
-            { icon: 'briefcase-outline', label: t('consignmentInvoice', locale), route: '/(drawer)/consignment-invoices' },
+            { icon: 'cube-outline', label: t('inventory', locale), route: '/(drawer)/inventory' },
+            { icon: 'cart-outline', label: t('salesOrders', locale), route: '/(drawer)/sales' },
+            { icon: 'document-text-outline', label: t('procurementOrders', locale), route: '/(drawer)/procurement' },
+            { icon: 'people-outline', label: t('customers', locale), route: '/(drawer)/customers' },
+            { icon: 'business-outline', label: t('suppliers', locale), route: '/(drawer)/suppliers' },
           ],
         },
         {
-          title: t('accountingSection', locale),
+          title: locale === 'ar' ? 'المالية' : 'Finance',
           items: [
             { icon: 'wallet-outline', label: t('liquidAssets', locale), route: '/(drawer)/liquid-assets' },
-            { icon: 'receipt-outline', label: t('outstandingInvoices', locale), route: '/(drawer)/outstanding-invoices' },
-            { icon: 'card-outline', label: t('expenses', locale), route: '/(drawer)/expenses' },
             { icon: 'swap-horizontal-outline', label: t('transactions', locale), route: '/(drawer)/transactions' },
-          ],
-        },
-        {
-          title: t('payablesReceivables', locale),
-          items: [
+            { icon: 'card-outline', label: t('expenses', locale), route: '/(drawer)/expenses' },
+            { icon: 'receipt-outline', label: t('outstandingInvoices', locale), route: '/(drawer)/outstanding-invoices' },
             { icon: 'calculator-outline', label: t('budget', locale), route: '/(drawer)/budget' },
-            { icon: 'time-outline', label: t('previousBudget', locale), route: '/(drawer)/previous-budget' },
           ],
         },
         {
-          title: t('reports', locale),
-          items: [
-            { icon: 'bar-chart-outline', label: t('monthlyReports', locale), route: '/(drawer)/reports' },
-            { icon: 'stats-chart-outline', label: locale === 'ar' ? 'تقرير مبيعات المستخدمين' : 'User Sales Report', route: '/(drawer)/user-sales-report' },
-          ],
-        },
-        {
-          title: t('generalSection', locale),
+          title: locale === 'ar' ? 'الإدارة' : 'Admin',
           items: [
             { icon: 'people-outline', label: locale === 'ar' ? 'المستخدمون' : 'Users', route: '/(drawer)/users' },
+            { icon: 'bar-chart-outline', label: t('monthlyReports', locale), route: '/(drawer)/reports' },
             { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
           ],
         },
       ];
     }
 
-    // Procurement user gets limited access
+    // Procurement user
     if (PROCUREMENT_ROLES.includes(userRole)) {
       return [
         {
-          title: t('procurementSection', locale),
+          title: locale === 'ar' ? 'المشتريات' : 'Procurement',
           items: [
             { icon: 'grid-outline', label: t('dashboard', locale), route: '/(drawer)/dashboard' },
             { icon: 'document-text-outline', label: t('procurementOrders', locale), route: '/(drawer)/procurement' },
             { icon: 'cube-outline', label: t('inventory', locale), route: '/(drawer)/inventory' },
-            { icon: 'briefcase-outline', label: t('consignmentInvoice', locale), route: '/(drawer)/consignment-invoices' },
           ],
         },
         {
-          title: t('generalSection', locale),
+          title: locale === 'ar' ? 'عام' : 'General',
           items: [
             { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
           ],
@@ -128,33 +107,22 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
       ];
     }
 
-    // Accountant gets accounting access
+    // Accountant
     if (ACCOUNTANT_ROLES.includes(userRole)) {
       return [
         {
-          title: t('operationsSection', locale),
+          title: locale === 'ar' ? 'المالية' : 'Finance',
           items: [
             { icon: 'grid-outline', label: t('dashboard', locale), route: '/(drawer)/dashboard' },
             { icon: 'swap-horizontal-outline', label: t('transactions', locale), route: '/(drawer)/transactions' },
-          ],
-        },
-        {
-          title: t('accountingSection', locale),
-          items: [
             { icon: 'wallet-outline', label: t('liquidAssets', locale), route: '/(drawer)/liquid-assets' },
-            { icon: 'receipt-outline', label: t('outstandingInvoices', locale), route: '/(drawer)/outstanding-invoices' },
             { icon: 'card-outline', label: t('expenses', locale), route: '/(drawer)/expenses' },
-          ],
-        },
-        {
-          title: t('payablesReceivables', locale),
-          items: [
+            { icon: 'receipt-outline', label: t('outstandingInvoices', locale), route: '/(drawer)/outstanding-invoices' },
             { icon: 'calculator-outline', label: t('budget', locale), route: '/(drawer)/budget' },
-            { icon: 'time-outline', label: t('previousBudget', locale), route: '/(drawer)/previous-budget' },
           ],
         },
         {
-          title: t('generalSection', locale),
+          title: locale === 'ar' ? 'عام' : 'General',
           items: [
             { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
           ],
@@ -162,31 +130,21 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
       ];
     }
 
-    // Warehouse sales staff
+    // Warehouse sales staff - 2 sections
     if (WAREHOUSE_ROLES.includes(userRole)) {
       return [
         {
-          title: t('operationsSection', locale),
+          title: locale === 'ar' ? 'المستودع' : 'Warehouse',
           items: [
             { icon: 'grid-outline', label: t('dashboard', locale), route: '/(drawer)/dashboard' },
             { icon: 'cube-outline', label: t('inventory', locale), route: '/(drawer)/inventory' },
-          ],
-        },
-        {
-          title: locale === 'ar' ? 'استلام البضائع' : 'Receiving',
-          items: [
-            { icon: 'download-outline', label: locale === 'ar' ? 'أوامر الشراء' : 'Purchase Orders', route: '/(drawer)/procurement' },
-          ],
-        },
-        {
-          title: locale === 'ar' ? 'التسليم' : 'Delivery',
-          items: [
-            { icon: 'send-outline', label: locale === 'ar' ? 'طلبات البيع' : 'Sales Orders', route: '/(drawer)/warehouse-sales-orders' },
+            { icon: 'download-outline', label: locale === 'ar' ? 'أوامر الشراء' : 'Incoming (PO)', route: '/(drawer)/procurement' },
+            { icon: 'send-outline', label: locale === 'ar' ? 'طلبات البيع' : 'Outgoing (Sales)', route: '/(drawer)/warehouse-sales-orders' },
             { icon: 'layers-outline', label: locale === 'ar' ? 'طلبات الرفوف' : 'Shelf Requests', route: '/(drawer)/shelf-requests' },
           ],
         },
         {
-          title: t('generalSection', locale),
+          title: locale === 'ar' ? 'عام' : 'General',
           items: [
             { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
           ],
@@ -194,22 +152,21 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
       ];
     }
 
-    // Shelf sales staff
+    // Shelf sales staff - 2 sections
     if (SHELF_ROLES.includes(userRole)) {
       return [
         {
-          title: t('operationsSection', locale),
+          title: locale === 'ar' ? 'المبيعات' : 'Sales',
           items: [
             { icon: 'grid-outline', label: t('dashboard', locale), route: '/(drawer)/dashboard' },
             { icon: 'flash-outline', label: t('dailyAggregateInvoice', locale), route: '/(drawer)/daily-invoice' },
             { icon: 'cart-outline', label: t('salesOrders', locale), route: '/(drawer)/sales' },
             { icon: 'cube-outline', label: locale === 'ar' ? 'مخزون الرف' : 'Shelf Inventory', route: '/(drawer)/shelf-inventory' },
             { icon: 'people-outline', label: t('customers', locale), route: '/(drawer)/customers' },
-            { icon: 'layers-outline', label: t('shelfRequests', locale), route: '/(drawer)/shelf-requests' },
           ],
         },
         {
-          title: t('generalSection', locale),
+          title: locale === 'ar' ? 'عام' : 'General',
           items: [
             { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
           ],
@@ -217,10 +174,10 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
       ];
     }
 
-    // Default fallback - minimal access
+    // Default fallback
     return [
       {
-        title: t('generalSection', locale),
+        title: locale === 'ar' ? 'عام' : 'General',
         items: [
           { icon: 'grid-outline', label: t('dashboard', locale), route: '/(drawer)/dashboard' },
           { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },

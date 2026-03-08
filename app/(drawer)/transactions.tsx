@@ -153,6 +153,7 @@ export default function TransactionsScreen() {
     const typeConfig = getTypeConfig(item.transactionType);
     const isIncome = ['CASH_IN', 'BANK_IN'].includes(item.transactionType);
     const hasReceipts = item.receiptImages && item.receiptImages.length > 0;
+    const isBankTxn = ['BANK_IN', 'BANK_OUT'].includes(item.transactionType);
     
     return (
       <TouchableOpacity 
@@ -205,6 +206,64 @@ export default function TransactionsScreen() {
             {locale === 'ar' ? 'ج.س' : 'SDG'}
           </Text>
         </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderBankTransaction = ({ item }: { item: Transaction }) => {
+    const typeConfig = getTypeConfig(item.transactionType);
+    const isIncome = item.transactionType === 'BANK_IN';
+    const hasReceipts = item.receiptImages && item.receiptImages.length > 0;
+
+    return (
+      <TouchableOpacity
+        style={[styles.bankCard, { backgroundColor: theme.card }]}
+        onPress={() => hasReceipts && handleViewReceipts(item)}
+      >
+        <View style={[styles.bankCardTop, isRtl && { flexDirection: 'row-reverse' }]}>
+          <View style={[styles.transactionIcon, { backgroundColor: typeConfig.color + '15' }]}>
+            <Ionicons name={typeConfig.icon as any} size={22} color={typeConfig.color} />
+          </View>
+          <View style={{ flex: 1, marginHorizontal: 12 }}>
+            <Text style={[styles.transactionRef, { color: theme.text }, isRtl && styles.textRtl]}>
+              {item.referenceNumber || `TXN-${item.id.substring(0, 8).toUpperCase()}`}
+            </Text>
+            <Text style={[styles.transactionDesc, { color: theme.textSecondary }, isRtl && styles.textRtl]} numberOfLines={1}>
+              {item.description}
+            </Text>
+            <Text style={[styles.transactionDate, { color: theme.textMuted }, isRtl && styles.textRtl]}>
+              {formatDate(item.createdAt)}
+            </Text>
+          </View>
+          <View style={[styles.amountContainer, isRtl && styles.amountContainerRtl]}>
+            <Text style={[styles.amountValue, { color: isIncome ? theme.success : theme.error }]}>
+              {isIncome ? '+' : '-'}{formatAmount(Number(item.amountSdg))}
+            </Text>
+            <Text style={[styles.currencyText, { color: theme.textSecondary }]}>SDG</Text>
+          </View>
+        </View>
+        {hasReceipts && (
+          <View style={styles.thumbnailRow}>
+            {item.receiptImages!.slice(0, 3).map((uri, idx) => (
+              <Image key={idx} source={{ uri }} style={styles.thumbnail} resizeMode="cover" />
+            ))}
+            {item.receiptImages!.length > 3 && (
+              <View style={[styles.thumbnailMore, { backgroundColor: theme.primary + '30' }]}>
+                <Text style={[styles.thumbnailMoreText, { color: theme.primary }]}>
+                  +{item.receiptImages!.length - 3}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+        {!hasReceipts && (
+          <View style={[styles.noReceiptBadge, { borderColor: theme.warning + '50' }]}>
+            <Ionicons name="alert-circle-outline" size={12} color={theme.warning} />
+            <Text style={[styles.noReceiptText, { color: theme.warning }]}>
+              {locale === 'ar' ? 'لا يوجد إيصال' : 'No receipt'}
+            </Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -268,7 +327,7 @@ export default function TransactionsScreen() {
       <FlatList
         data={filteredTransactions}
         keyExtractor={(item) => item.id}
-        renderItem={renderTransaction}
+        renderItem={activeFilter === 'bank' ? renderBankTransaction : renderTransaction}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
@@ -602,5 +661,52 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+  },
+  bankCard: {
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+  },
+  bankCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  thumbnailRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    paddingLeft: 60,
+  },
+  thumbnail: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+  },
+  thumbnailMore: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  thumbnailMoreText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  noReceiptBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+    marginLeft: 60,
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    alignSelf: 'flex-start',
+  },
+  noReceiptText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
 });

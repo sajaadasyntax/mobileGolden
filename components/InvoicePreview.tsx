@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeStore } from '@/stores/theme';
@@ -124,8 +124,8 @@ export default function InvoicePreview({ visible, onClose, invoice, onSave }: Pr
       const { uri, filename } = await generateInvoicePDF(invoice, options);
       
       // Verify file exists
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-      if (!fileInfo.exists) {
+      const savedFile = new File(uri);
+      if (!savedFile.exists) {
         throw new Error(locale === 'ar' ? 'فشل في التحقق من وجود الملف' : 'Failed to verify saved file');
       }
       

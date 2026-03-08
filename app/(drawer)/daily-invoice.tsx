@@ -380,9 +380,11 @@ export default function DailyInvoiceScreen() {
     setSaving(true);
     try {
       // Create sales invoice via backend
+      const mappedPaymentMethod = paymentMethod === 'CARD' ? 'BANK_TRANSFER' : paymentMethod as 'CASH' | 'MIXED';
       await api.sales.createInvoice({
         shelfId,
         invoiceType: 'RETAIL',
+        paymentMethod: mappedPaymentMethod,
         notes: `Daily aggregate sale - ${paymentMethod}`,
         lines: invoiceItems.map(item => ({
           itemId: item.itemId,

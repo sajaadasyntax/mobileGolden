@@ -63,39 +63,56 @@ export default function DashboardScreen() {
     return new Intl.NumberFormat(locale === 'ar' ? 'ar-SA' : 'en-US').format(amount);
   };
 
-  // Quick actions based on user role
+  // Quick actions - max 4 per role, 2 per row
   const getQuickActions = () => {
     const role = user?.role || '';
-    const baseActions = [
-      { icon: 'cube-outline', label: t('inventory', locale), route: '/(drawer)/inventory', color: theme.primary },
-    ];
-
-    if (['ADMIN', 'MANAGER', 'SHELF_SALES'].includes(role)) {
-      baseActions.unshift(
-        { icon: 'cart-outline', label: t('newSale', locale), route: '/(drawer)/daily-invoice', color: theme.success }
-      );
-    }
-
-    if (['ADMIN', 'MANAGER', 'PROCUREMENT'].includes(role)) {
-      baseActions.push(
-        { icon: 'document-text-outline', label: t('purchaseOrders', locale), route: '/(drawer)/procurement', color: theme.info }
-      );
-    }
-
-    if (['ADMIN', 'MANAGER', 'WAREHOUSE_SALES'].includes(role)) {
-      baseActions.push(
-        { icon: 'layers-outline', label: t('goodsRequests', locale), route: '/(drawer)/shelf-requests', color: '#9C27B0' }
-      );
-    }
 
     if (['ADMIN', 'MANAGER'].includes(role)) {
-      baseActions.push(
-        { icon: 'cash-outline', label: t('exchangeRate', locale), route: '/(drawer)/exchange-rate', color: theme.warning },
-        { icon: 'people-outline', label: t('customers', locale), route: '/(drawer)/customers', color: theme.textSecondary }
-      );
+      return [
+        { icon: 'cart-outline', label: locale === 'ar' ? 'المبيعات' : 'Sales', route: '/(drawer)/sales', color: theme.success },
+        { icon: 'cube-outline', label: t('inventory', locale), route: '/(drawer)/inventory', color: theme.primary },
+        { icon: 'document-text-outline', label: t('procurementOrders', locale), route: '/(drawer)/procurement', color: theme.info },
+        { icon: 'swap-horizontal-outline', label: t('transactions', locale), route: '/(drawer)/transactions', color: theme.warning },
+      ];
     }
 
-    return baseActions;
+    if (role === 'SHELF_SALES') {
+      return [
+        { icon: 'flash-outline', label: t('dailyAggregateInvoice', locale), route: '/(drawer)/daily-invoice', color: theme.success },
+        { icon: 'cube-outline', label: locale === 'ar' ? 'مخزون الرف' : 'Shelf Inventory', route: '/(drawer)/shelf-inventory', color: theme.primary },
+        { icon: 'cart-outline', label: t('salesOrders', locale), route: '/(drawer)/sales', color: theme.info },
+        { icon: 'people-outline', label: t('customers', locale), route: '/(drawer)/customers', color: '#9C27B0' },
+      ];
+    }
+
+    if (role === 'WAREHOUSE_SALES') {
+      return [
+        { icon: 'cube-outline', label: t('inventory', locale), route: '/(drawer)/inventory', color: theme.primary },
+        { icon: 'download-outline', label: locale === 'ar' ? 'أوامر الشراء' : 'Purchase Orders', route: '/(drawer)/procurement', color: theme.info },
+        { icon: 'send-outline', label: locale === 'ar' ? 'طلبات البيع' : 'Sales Orders', route: '/(drawer)/warehouse-sales-orders', color: theme.success },
+        { icon: 'layers-outline', label: t('shelfRequests', locale), route: '/(drawer)/shelf-requests', color: '#9C27B0' },
+      ];
+    }
+
+    if (role === 'PROCUREMENT') {
+      return [
+        { icon: 'document-text-outline', label: t('procurementOrders', locale), route: '/(drawer)/procurement', color: theme.primary },
+        { icon: 'cube-outline', label: t('inventory', locale), route: '/(drawer)/inventory', color: theme.info },
+      ];
+    }
+
+    if (role === 'ACCOUNTANT') {
+      return [
+        { icon: 'swap-horizontal-outline', label: t('transactions', locale), route: '/(drawer)/transactions', color: theme.primary },
+        { icon: 'wallet-outline', label: t('liquidAssets', locale), route: '/(drawer)/liquid-assets', color: theme.success },
+        { icon: 'card-outline', label: t('expenses', locale), route: '/(drawer)/expenses', color: theme.error },
+        { icon: 'calculator-outline', label: t('budget', locale), route: '/(drawer)/budget', color: theme.info },
+      ];
+    }
+
+    return [
+      { icon: 'cube-outline', label: t('inventory', locale), route: '/(drawer)/inventory', color: theme.primary },
+    ];
   };
 
   const quickActions = getQuickActions();
@@ -149,41 +166,45 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {/* Day Status Card - Simple */}
+      {/* Day Status Card */}
       <TouchableOpacity
         style={[
           styles.dayStatusCard,
           {
-            backgroundColor: isDayOpen ? theme.success + '15' : theme.warning + '15',
-            borderColor: isDayOpen ? theme.success + '30' : theme.warning + '30',
+            backgroundColor: isDayOpen ? theme.success + '18' : theme.error + '12',
+            borderColor: isDayOpen ? theme.success : theme.error + '60',
           },
         ]}
         onPress={() => router.push('/(drawer)/exchange-rate')}
+        activeOpacity={0.8}
       >
         <View style={[styles.dayStatusContent, isRtl && styles.dayStatusContentRtl]}>
-          <View style={[styles.dayStatusIcon, { backgroundColor: theme.background }]}>
+          <View style={[styles.dayStatusIcon, { backgroundColor: isDayOpen ? theme.success + '25' : theme.error + '20' }]}>
             <Ionicons
               name={isDayOpen ? 'sunny' : 'moon'}
-              size={28}
-              color={isDayOpen ? theme.success : theme.warning}
+              size={26}
+              color={isDayOpen ? theme.success : theme.error}
             />
           </View>
           <View style={styles.dayStatusInfo}>
-            <Text style={[styles.dayStatusTitle, { color: theme.text }, isRtl && styles.textRtl]}>
-              {isDayOpen ? t('dayIsOpen', locale) : t('dayIsClosed', locale)}
+            <Text style={[styles.dayStatusTitle, { color: isDayOpen ? theme.success : theme.error }, isRtl && styles.textRtl]}>
+              {isDayOpen ? (locale === 'ar' ? 'اليوم مفتوح' : 'Day Open') : (locale === 'ar' ? 'اليوم مغلق' : 'Day Closed')}
             </Text>
-            {isDayOpen && dayCycle?.exchangeRateUsdSdg && (
+            {isDayOpen && dayCycle?.exchangeRateUsdSdg ? (
               <Text style={[styles.exchangeRateText, { color: theme.textSecondary }, isRtl && styles.textRtl]}>
                 1 USD = {Number(dayCycle.exchangeRateUsdSdg).toLocaleString()} SDG
               </Text>
-            )}
-            {!isDayOpen && (
-              <Text style={[styles.exchangeRateText, { color: theme.textSecondary }, isRtl && styles.textRtl]}>
-                {locale === 'ar' ? 'اضغط لفتح اليوم' : 'Tap to open day'}
+            ) : (
+              <Text style={[styles.exchangeRateText, { color: theme.textMuted }, isRtl && styles.textRtl]}>
+                {locale === 'ar' ? 'اضغط لفتح اليوم' : 'Tap to open the day'}
               </Text>
             )}
           </View>
-          <Ionicons name={isRtl ? 'chevron-back' : 'chevron-forward'} size={20} color={theme.textSecondary} />
+          <View style={[styles.dayStatusBadge, { backgroundColor: isDayOpen ? theme.success : theme.error }]}>
+            <Text style={styles.dayStatusBadgeText}>
+              {isDayOpen ? (locale === 'ar' ? 'مفتوح' : 'OPEN') : (locale === 'ar' ? 'مغلق' : 'CLOSED')}
+            </Text>
+          </View>
         </View>
       </TouchableOpacity>
 
@@ -218,13 +239,13 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 80,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
-    gap: 14,
+    marginBottom: 16,
+    gap: 12,
   },
   headerRtl: {
     flexDirection: 'row-reverse',
@@ -243,31 +264,31 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   summarySection: {
-    marginBottom: 20,
+    marginBottom: 14,
   },
   summaryGrid: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   summaryCard: {
     flex: 1,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 12,
+    padding: 12,
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   summaryValue: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
   summaryLabel: {
     fontSize: 11,
   },
   dayStatusCard: {
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1.5,
   },
   dayStatusContent: {
     flexDirection: 'row',
@@ -296,37 +317,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   actionCard: {
-    width: '31%',
-    borderRadius: 16,
-    padding: 16,
+    width: '48%',
+    borderRadius: 14,
+    padding: 18,
     alignItems: 'center',
-    minHeight: 120,
+    minHeight: 110,
     justifyContent: 'center',
   },
   actionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+    width: 52,
+    height: 52,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   actionLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
   },
   textRtl: {
     textAlign: 'right',
+  },
+  dayStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  dayStatusBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });

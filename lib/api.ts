@@ -541,6 +541,7 @@ export const api = {
       shelfId: string;
       customerId?: string;
       invoiceType: 'WHOLESALE' | 'RETAIL';
+      paymentMethod?: 'CASH' | 'BANK_TRANSFER' | 'CREDIT' | 'MIXED';
       notes?: string;
       lines: { itemId: string; qty: number; unitPriceUsd: number }[];
     }) => trpcMutation<any>('sales.salesInvoices.create', data),

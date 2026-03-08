@@ -78,6 +78,7 @@ export default function SalesOrderDetailScreen() {
   const [order, setOrder] = useState<SalesOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isDayOpen, setIsDayOpen] = useState(true);
   
   // Delivery mode state
   const [deliveryMode, setDeliveryMode] = useState(false);
@@ -93,8 +94,13 @@ export default function SalesOrderDetailScreen() {
   const loadOrder = async () => {
     try {
       setLoading(true);
-      const data = await api.sales.salesOrders.getById(id!);
-      
+      const [data, cycle] = await Promise.all([
+        api.sales.salesOrders.getById(id!),
+        user?.branchId ? api.dayCycle.getCurrent(user.branchId).catch(() => null) : Promise.resolve(null),
+      ]);
+
+      setIsDayOpen(cycle?.status === 'OPEN');
+
       const mappedOrder = {
         ...data,
         totalSdg: Number(data.totalSdg),
@@ -465,8 +471,17 @@ export default function SalesOrderDetailScreen() {
             </View>
           ) : (
             <TouchableOpacity
-              style={[styles.deliverButton, { backgroundColor: theme.primary }]}
-              onPress={() => setDeliveryMode(true)}
+              style={[styles.deliverButton, { backgroundColor: isDayOpen ? theme.primary : theme.textMuted }]}
+              onPress={() => {
+                if (!isDayOpen) {
+                  Alert.alert(
+                    locale === 'ar' ? 'اليوم مغلق' : 'Day Closed',
+                    locale === 'ar' ? 'يجب فتح يوم العمل أولاً' : 'Please open the day cycle first'
+                  );
+                  return;
+                }
+                setDeliveryMode(true);
+              }}
             >
               <Ionicons name="send-outline" size={20} color="#fff" />
               <Text style={styles.deliverButtonText}>
