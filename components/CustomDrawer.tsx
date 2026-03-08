@@ -80,8 +80,7 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
             { icon: 'wallet-outline', label: t('liquidAssets', locale), route: '/(drawer)/liquid-assets' },
             { icon: 'receipt-outline', label: t('outstandingInvoices', locale), route: '/(drawer)/outstanding-invoices' },
             { icon: 'card-outline', label: t('expenses', locale), route: '/(drawer)/expenses' },
-            { icon: 'business-outline', label: t('bankTransactions', locale), route: '/(drawer)/bank-transactions' },
-            { icon: 'card-outline', label: t('bankPayment', locale), route: '/(drawer)/bank-payment' },
+            { icon: 'swap-horizontal-outline', label: t('transactions', locale), route: '/(drawer)/transactions' },
           ],
         },
         {
@@ -108,7 +107,7 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
       ];
     }
 
-    // Procurement user gets limited access - only create orders, view inventory, no payment screens
+    // Procurement user gets limited access
     if (PROCUREMENT_ROLES.includes(userRole)) {
       return [
         {
@@ -123,7 +122,6 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
         {
           title: t('generalSection', locale),
           items: [
-            { icon: 'card-outline', label: t('bankPayment', locale), route: '/(drawer)/bank-payment' },
             { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
           ],
         },
@@ -146,8 +144,6 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
             { icon: 'wallet-outline', label: t('liquidAssets', locale), route: '/(drawer)/liquid-assets' },
             { icon: 'receipt-outline', label: t('outstandingInvoices', locale), route: '/(drawer)/outstanding-invoices' },
             { icon: 'card-outline', label: t('expenses', locale), route: '/(drawer)/expenses' },
-            { icon: 'business-outline', label: t('bankTransactions', locale), route: '/(drawer)/bank-transactions' },
-            { icon: 'card-outline', label: t('bankPayment', locale), route: '/(drawer)/bank-payment' },
           ],
         },
         {
@@ -192,7 +188,6 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
         {
           title: t('generalSection', locale),
           items: [
-            { icon: 'card-outline', label: t('bankPayment', locale), route: '/(drawer)/bank-payment' },
             { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
           ],
         },
@@ -216,7 +211,6 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
         {
           title: t('generalSection', locale),
           items: [
-            { icon: 'card-outline', label: t('bankPayment', locale), route: '/(drawer)/bank-payment' },
             { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
           ],
         },
@@ -229,7 +223,6 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
         title: t('generalSection', locale),
         items: [
           { icon: 'grid-outline', label: t('dashboard', locale), route: '/(drawer)/dashboard' },
-          { icon: 'card-outline', label: t('bankPayment', locale), route: '/(drawer)/bank-payment' },
           { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
         ],
       },

@@ -11,13 +11,15 @@ import {
   TextInput,
   Alert,
   ScrollView,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
-import { api } from '@/lib/api';
+import { api, uploadReceipt } from '@/lib/api';
 
 interface ExpenseCategory {
   id: string;
@@ -63,14 +65,17 @@ export default function ExpensesScreen() {
   const [selectedCategory, setSelectedCategory] = useState<ExpenseCategory | null>(null);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER'>('CASH');
+  const [receiptUri, setReceiptUri] = useState<string | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
 
   useEffect(() => {
     loadData();
-  }, [user?.branchId]);
+  }, [user]);
 
   const loadData = async () => {
     try {
-      if (!user?.branchId) return;
+      if (!user) return;
       
       // Load expenses and categories in parallel
       const [expensesResult, categoriesResult] = await Promise.all([
@@ -94,6 +99,25 @@ export default function ExpensesScreen() {
     setRefreshing(false);
   };
 
+  const pickReceiptImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        locale === 'ar' ? 'تنبيه' : 'Permission Required',
+        locale === 'ar' ? 'يرجى السماح بالوصول إلى الصور' : 'Please allow access to photos'
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: true,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setReceiptUri(result.assets[0].uri);
+    }
+  };
+
   const handleAddExpense = async () => {
     if (!selectedCategory) {
       Alert.alert(t('error', locale), locale === 'ar' ? 'يرجى اختيار الفئة' : 'Please select a category');
@@ -107,13 +131,29 @@ export default function ExpensesScreen() {
       Alert.alert(t('error', locale), locale === 'ar' ? 'يرجى إدخال الوصف' : 'Please enter a description');
       return;
     }
+    if (paymentMethod === 'BANK_TRANSFER' && !receiptUri) {
+      Alert.alert(t('error', locale), locale === 'ar' ? 'يرجى إرفاق صورة الإيصال للدفع البنكي' : 'Please attach a receipt image for bank transfer');
+      return;
+    }
 
     setSaving(true);
     try {
+      let receiptImageUrl: string | undefined;
+      if (receiptUri) {
+        setUploadingReceipt(true);
+        try {
+          receiptImageUrl = await uploadReceipt(receiptUri);
+        } finally {
+          setUploadingReceipt(false);
+        }
+      }
+
       await api.accounting.expenses.create({
         categoryId: selectedCategory.id,
         amountSdg: parseFloat(amount),
         description: description.trim(),
+        paymentMethod,
+        receiptImageUrl,
       });
       
       Alert.alert(
@@ -135,6 +175,8 @@ export default function ExpensesScreen() {
     setSelectedCategory(null);
     setAmount('');
     setDescription('');
+    setPaymentMethod('CASH');
+    setReceiptUri(null);
   };
 
   const getCategoryStyle = (category?: ExpenseCategory) => {
@@ -352,6 +394,52 @@ export default function ExpensesScreen() {
                 numberOfLines={3}
                 textAlign={isRtl ? 'right' : 'left'}
               />
+
+              {/* Payment Method */}
+              <Text style={[styles.inputLabel, { color: theme.text, marginTop: 16 }, isRtl && styles.textRtl]}>
+                {locale === 'ar' ? 'طريقة الدفع' : 'Payment Method'}
+              </Text>
+              <View style={[styles.methodRow, isRtl && styles.rowReverse]}>
+                <TouchableOpacity
+                  style={[styles.methodChip, { borderColor: paymentMethod === 'CASH' ? theme.success : theme.border }, paymentMethod === 'CASH' && { backgroundColor: theme.success + '18' }]}
+                  onPress={() => setPaymentMethod('CASH')}
+                >
+                  <Ionicons name="cash" size={16} color={paymentMethod === 'CASH' ? theme.success : theme.textMuted} />
+                  <Text style={{ color: paymentMethod === 'CASH' ? theme.success : theme.textMuted, fontWeight: '600', fontSize: 13 }}>
+                    {locale === 'ar' ? 'نقدي' : 'Cash'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.methodChip, { borderColor: paymentMethod === 'BANK_TRANSFER' ? theme.primary : theme.border }, paymentMethod === 'BANK_TRANSFER' && { backgroundColor: theme.primary + '18' }]}
+                  onPress={() => setPaymentMethod('BANK_TRANSFER')}
+                >
+                  <Ionicons name="card" size={16} color={paymentMethod === 'BANK_TRANSFER' ? theme.primary : theme.textMuted} />
+                  <Text style={{ color: paymentMethod === 'BANK_TRANSFER' ? theme.primary : theme.textMuted, fontWeight: '600', fontSize: 13 }}>
+                    {locale === 'ar' ? 'تحويل بنكي' : 'Bank Transfer'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Receipt Image */}
+              <Text style={[styles.inputLabel, { color: theme.text, marginTop: 16 }, isRtl && styles.textRtl]}>
+                {locale === 'ar'
+                  ? (paymentMethod === 'BANK_TRANSFER' ? 'صورة الإيصال *' : 'صورة الإيصال (اختياري)')
+                  : (paymentMethod === 'BANK_TRANSFER' ? 'Receipt Image *' : 'Receipt Image (Optional)')}
+              </Text>
+              <TouchableOpacity
+                style={[styles.receiptPickerBtn, { borderColor: receiptUri ? theme.success : theme.border, backgroundColor: theme.backgroundSecondary }]}
+                onPress={pickReceiptImage}
+              >
+                <Ionicons name={receiptUri ? 'checkmark-circle' : 'camera'} size={18} color={receiptUri ? theme.success : theme.textMuted} />
+                <Text style={{ color: receiptUri ? theme.success : theme.textMuted, fontWeight: '500', fontSize: 13 }}>
+                  {receiptUri
+                    ? (locale === 'ar' ? 'تم اختيار الصورة' : 'Image selected')
+                    : (locale === 'ar' ? 'اختر صورة' : 'Choose image')}
+                </Text>
+              </TouchableOpacity>
+              {receiptUri && (
+                <Image source={{ uri: receiptUri }} style={styles.receiptPreview} resizeMode="cover" />
+              )}
             </ScrollView>
 
             {/* Actions */}
@@ -367,9 +455,9 @@ export default function ExpensesScreen() {
               <TouchableOpacity
                 style={[styles.saveButton, { backgroundColor: theme.primary }]}
                 onPress={handleAddExpense}
-                disabled={saving}
+                disabled={saving || uploadingReceipt}
               >
-                {saving ? (
+                {(saving || uploadingReceipt) ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <Text style={styles.saveButtonText}>
@@ -611,5 +699,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  methodRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  methodChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    gap: 6,
+  },
+  receiptPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    gap: 8,
+  },
+  receiptPreview: {
+    width: '100%',
+    height: 140,
+    borderRadius: 10,
+    marginTop: 10,
   },
 });

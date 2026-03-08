@@ -39,6 +39,8 @@ export default function TransactionsScreen() {
   const { user } = useAuthStore();
   const isRtl = locale === 'ar';
   
+  const isAdmin = ['ADMIN', 'MANAGER'].includes(user?.role || '');
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,6 +48,7 @@ export default function TransactionsScreen() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'bank'>('all');
 
   useEffect(() => {
     loadTransactions();
@@ -206,6 +209,10 @@ export default function TransactionsScreen() {
     );
   };
 
+  const filteredTransactions = activeFilter === 'bank'
+    ? transactions.filter(t => ['BANK_IN', 'BANK_OUT'].includes(t.transactionType))
+    : transactions;
+
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }, styles.centered]}>
@@ -216,6 +223,29 @@ export default function TransactionsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Filter Tabs (admin only) */}
+      {isAdmin && (
+        <View style={[styles.filterRow, { borderBottomColor: theme.border }]}>
+          <TouchableOpacity
+            style={[styles.filterTab, activeFilter === 'all' && { borderBottomColor: theme.primary, borderBottomWidth: 2 }]}
+            onPress={() => setActiveFilter('all')}
+          >
+            <Text style={[styles.filterTabText, { color: activeFilter === 'all' ? theme.primary : theme.textMuted }]}>
+              {locale === 'ar' ? 'الكل' : 'All'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterTab, activeFilter === 'bank' && { borderBottomColor: theme.primary, borderBottomWidth: 2 }]}
+            onPress={() => setActiveFilter('bank')}
+          >
+            <Ionicons name="business" size={14} color={activeFilter === 'bank' ? theme.primary : theme.textMuted} />
+            <Text style={[styles.filterTabText, { color: activeFilter === 'bank' ? theme.primary : theme.textMuted }]}>
+              {locale === 'ar' ? 'البنك' : 'Bank'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Summary Cards */}
       <View style={styles.summaryRow}>
         <View style={[styles.summaryCard, { backgroundColor: theme.success + '15', borderColor: theme.success + '30' }]}>
@@ -236,7 +266,7 @@ export default function TransactionsScreen() {
 
       {/* Transactions List */}
       <FlatList
-        data={transactions}
+        data={filteredTransactions}
         keyExtractor={(item) => item.id}
         renderItem={renderTransaction}
         contentContainerStyle={styles.listContent}
@@ -353,6 +383,22 @@ const styles = StyleSheet.create({
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    paddingHorizontal: 8,
+  },
+  filterTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 6,
+  },
+  filterTabText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   summaryRow: {
     flexDirection: 'row',

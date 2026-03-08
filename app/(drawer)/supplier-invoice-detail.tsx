@@ -10,14 +10,16 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
-import { api } from '@/lib/api';
+import { api, uploadReceipt } from '@/lib/api';
 
 interface SupplierInvoice {
   id: string;
@@ -70,6 +72,8 @@ export default function SupplierInvoiceDetailScreen() {
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER'>('CASH');
   const [transactionNumber, setTransactionNumber] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [receiptUri, setReceiptUri] = useState<string | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
 
   useEffect(() => {
     if (id) loadInvoice();
@@ -99,12 +103,35 @@ export default function SupplierInvoiceDetailScreen() {
     setRefreshing(false);
   };
 
+  const pickReceiptImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        locale === 'ar' ? 'تنبيه' : 'Permission Required',
+        locale === 'ar' ? 'يرجى السماح بالوصول إلى الصور' : 'Please allow access to photos'
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: true,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setReceiptUri(result.assets[0].uri);
+    }
+  };
+
   const handlePayInvoice = async () => {
     if (!invoice || !isAdmin) return;
 
-    // Validate bank transfer requirements
     if (paymentMethod === 'BANK_TRANSFER' && !transactionNumber.trim()) {
       Alert.alert(t('error', locale), locale === 'ar' ? 'يرجى إدخال رقم العملية' : 'Please enter transaction number');
+      return;
+    }
+
+    if (paymentMethod === 'BANK_TRANSFER' && !receiptUri) {
+      Alert.alert(t('error', locale), locale === 'ar' ? 'يرجى إرفاق صورة الإيصال' : 'Please attach a receipt image for bank transfer');
       return;
     }
 
@@ -114,39 +141,36 @@ export default function SupplierInvoiceDetailScreen() {
       return;
     }
 
-    Alert.alert(
-      locale === 'ar' ? 'تأكيد الدفع' : 'Confirm Payment',
-      locale === 'ar'
-        ? `هل تريد تسجيل دفع ${amount.toLocaleString()} ج.س للفاتورة ${invoice.invoiceNumber}؟`
-        : `Record payment of ${amount.toLocaleString()} SDG for invoice ${invoice.invoiceNumber}?`,
-      [
-        { text: t('cancel', locale), style: 'cancel' },
-        {
-          text: t('confirm', locale),
-          onPress: async () => {
-            setProcessing(true);
-            try {
-              await api.accounting.supplierInvoices.payInvoice({
-                id: invoice.id,
-                paymentMethod,
-                transactionNumber: transactionNumber || undefined,
-                paidAmountSdg: amount,
-                // For now, skip receipt image - can be added later
-                receiptImageUrl: paymentMethod === 'BANK_TRANSFER' ? 'pending' : undefined,
-              });
-              Alert.alert(t('success', locale), locale === 'ar' ? 'تم تسجيل الدفع بنجاح' : 'Payment recorded successfully');
-              setShowPaymentModal(false);
-              setTransactionNumber('');
-              loadInvoice();
-            } catch (error: any) {
-              Alert.alert(t('error', locale), error.message || (locale === 'ar' ? 'فشل في تسجيل الدفع' : 'Failed to record payment'));
-            } finally {
-              setProcessing(false);
-            }
-          },
-        },
-      ]
-    );
+    setProcessing(true);
+    try {
+      let receiptImageUrl: string | undefined;
+      if (paymentMethod === 'BANK_TRANSFER' && receiptUri) {
+        setUploadingReceipt(true);
+        try {
+          receiptImageUrl = await uploadReceipt(receiptUri);
+        } finally {
+          setUploadingReceipt(false);
+        }
+      }
+
+      await api.accounting.supplierInvoices.payInvoice({
+        id: invoice.id,
+        paymentMethod,
+        transactionNumber: transactionNumber || undefined,
+        paidAmountSdg: amount,
+        receiptImageUrl,
+      });
+
+      Alert.alert(t('success', locale), locale === 'ar' ? 'تم تسجيل الدفع بنجاح' : 'Payment recorded successfully');
+      setShowPaymentModal(false);
+      setTransactionNumber('');
+      setReceiptUri(null);
+      loadInvoice();
+    } catch (error: any) {
+      Alert.alert(t('error', locale), error.message || (locale === 'ar' ? 'فشل في تسجيل الدفع' : 'Failed to record payment'));
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleMarkOutstanding = async () => {
@@ -467,7 +491,7 @@ export default function SupplierInvoiceDetailScreen() {
               <Text style={[styles.modalTitle, { color: theme.text }]}>
                 {locale === 'ar' ? 'تسجيل دفع' : 'Record Payment'}
               </Text>
-              <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
+              <TouchableOpacity onPress={() => { setShowPaymentModal(false); setReceiptUri(null); }}>
                 <Ionicons name="close" size={24} color={theme.text} />
               </TouchableOpacity>
             </View>
@@ -519,7 +543,7 @@ export default function SupplierInvoiceDetailScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Transaction Number (for bank transfer) */}
+              {/* Transaction Number and Receipt (for bank transfer) */}
               {paymentMethod === 'BANK_TRANSFER' && (
                 <>
                   <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 16 }]}>
@@ -532,6 +556,24 @@ export default function SupplierInvoiceDetailScreen() {
                     placeholder={locale === 'ar' ? 'أدخل رقم العملية' : 'Enter transaction number'}
                     placeholderTextColor={theme.inputPlaceholder}
                   />
+
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 16 }]}>
+                    {locale === 'ar' ? 'صورة الإيصال *' : 'Receipt Image *'}
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.receiptPickerBtn, { borderColor: receiptUri ? theme.success : theme.border, backgroundColor: theme.input }]}
+                    onPress={pickReceiptImage}
+                  >
+                    <Ionicons name={receiptUri ? 'checkmark-circle' : 'camera'} size={20} color={receiptUri ? theme.success : theme.textMuted} />
+                    <Text style={[styles.receiptPickerText, { color: receiptUri ? theme.success : theme.textMuted }]}>
+                      {receiptUri
+                        ? (locale === 'ar' ? 'تم اختيار الصورة' : 'Image selected')
+                        : (locale === 'ar' ? 'اختر صورة الإيصال' : 'Choose receipt image')}
+                    </Text>
+                  </TouchableOpacity>
+                  {receiptUri && (
+                    <Image source={{ uri: receiptUri }} style={styles.receiptPreview} resizeMode="cover" />
+                  )}
                 </>
               )}
             </View>
@@ -546,9 +588,9 @@ export default function SupplierInvoiceDetailScreen() {
               <TouchableOpacity
                 style={[styles.modalConfirmButton, { backgroundColor: theme.success }]}
                 onPress={handlePayInvoice}
-                disabled={processing}
+                disabled={processing || uploadingReceipt}
               >
-                {processing ? (
+                {(processing || uploadingReceipt) ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <Text style={styles.modalConfirmText}>{locale === 'ar' ? 'تأكيد الدفع' : 'Confirm Payment'}</Text>
@@ -847,5 +889,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: '600',
+  },
+  receiptPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    gap: 8,
+  },
+  receiptPickerText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  receiptPreview: {
+    width: '100%',
+    height: 160,
+    borderRadius: 10,
+    marginTop: 10,
   },
 });

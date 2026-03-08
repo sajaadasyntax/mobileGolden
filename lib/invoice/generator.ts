@@ -258,13 +258,13 @@ export const printInvoice = async (
   company?: CompanyInfo
 ): Promise<void> => {
   try {
-    // Get logo as base64
-    const logoBase64 = await getLogoBase64();
-    
-    // Generate HTML
+    let logoBase64: string | undefined;
+    try {
+      logoBase64 = await getLogoBase64();
+    } catch {
+      logoBase64 = undefined;
+    }
     const html = generateInvoiceHTML(invoice, options, company, logoBase64);
-    
-    // Print
     await Print.printAsync({ html });
   } catch (error) {
     console.error('Error printing invoice:', error);
@@ -272,22 +272,12 @@ export const printInvoice = async (
   }
 };
 
-// Save invoice as image (screenshot approach using webview)
-export const saveInvoiceAsImage = async (
+export const saveInvoicePDF = async (
   invoice: Invoice,
   options: InvoiceGenerationOptions,
   company?: CompanyInfo
 ): Promise<{ uri: string; filename: string }> => {
-  try {
-    // For image export, we first generate PDF then inform user
-    // Native image generation from HTML requires additional setup
-    // For now, we'll save as PDF which can be converted or screenshot
-    const result = await generateInvoicePDF(invoice, options, company);
-    return result;
-  } catch (error) {
-    console.error('Error saving invoice as image:', error);
-    throw error;
-  }
+  return generateInvoicePDF(invoice, options, company);
 };
 
 // Calculate invoice totals

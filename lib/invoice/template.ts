@@ -1,6 +1,5 @@
 import { Invoice, InvoiceGenerationOptions, CompanyInfo, InvoiceItem } from './types';
 
-// Company default info - can be overridden
 const DEFAULT_COMPANY: CompanyInfo = {
   name: 'Golden Trading Company',
   nameAr: 'شركة الذهبي للتجارة',
@@ -15,35 +14,49 @@ const DEFAULT_COMPANY: CompanyInfo = {
   logoUri: '',
 };
 
+const escapeHtml = (str: string | undefined | null): string => {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
+
 const formatDate = (dateString: string, locale: 'en' | 'ar'): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString(locale === 'ar' ? 'ar-SA' : 'en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString(locale === 'ar' ? 'ar-SA' : 'en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  } catch {
+    return dateString;
+  }
 };
 
 const formatCurrency = (amount: number, currency: 'USD' | 'SDG', locale: 'en' | 'ar'): string => {
-  const currencySymbol = currency === 'USD' ? '$' : 'SDG';
-  const formattedAmount = amount.toLocaleString(locale === 'ar' ? 'ar-SA' : 'en-US', {
+  const formatted = amount.toLocaleString(locale === 'ar' ? 'ar-SA' : 'en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  return locale === 'ar' ? `${formattedAmount} ${currencySymbol}` : `${currencySymbol} ${formattedAmount}`;
+  return currency === 'USD' ? `$${formatted}` : `${formatted} SDG`;
 };
 
 const getStatusColor = (status: string): string => {
   const colors: Record<string, string> = {
-    DRAFT: '#8b8ba7',
-    PENDING: '#f59e0b',
-    CONFIRMED: '#6366f1',
-    PAID: '#10b981',
-    PARTIALLY_PAID: '#3b82f6',
-    CANCELLED: '#ef4444',
-    DEFERRED: '#8b5cf6',
+    DRAFT: '#6b7280',
+    PENDING: '#d97706',
+    CONFIRMED: '#2563eb',
+    PAID: '#16a34a',
+    PARTIALLY_PAID: '#0284c7',
+    CANCELLED: '#dc2626',
+    DEFERRED: '#7c3aed',
+    ISSUED: '#059669',
   };
-  return colors[status] || '#8b8ba7';
+  return colors[status] || '#6b7280';
 };
 
 const getStatusText = (status: string, locale: 'en' | 'ar'): string => {
@@ -55,6 +68,7 @@ const getStatusText = (status: string, locale: 'en' | 'ar'): string => {
     PARTIALLY_PAID: { en: 'Partially Paid', ar: 'مدفوعة جزئياً' },
     CANCELLED: { en: 'Cancelled', ar: 'ملغية' },
     DEFERRED: { en: 'Deferred', ar: 'مؤجلة' },
+    ISSUED: { en: 'Issued', ar: 'مُصدرة' },
   };
   return texts[status]?.[locale] || status;
 };
@@ -67,26 +81,43 @@ const getInvoiceTypeText = (type: string, locale: 'en' | 'ar'): string => {
   return texts[type]?.[locale] || type;
 };
 
+const getPaymentMethodText = (method: string, locale: 'en' | 'ar'): string => {
+  const texts: Record<string, { en: string; ar: string }> = {
+    CASH: { en: 'Cash', ar: 'نقداً' },
+    BANK_TRANSFER: { en: 'Bank Transfer', ar: 'تحويل بنكي' },
+    CHECK: { en: 'Check', ar: 'شيك' },
+    CREDIT: { en: 'Credit', ar: 'آجل' },
+    MIXED: { en: 'Mixed', ar: 'مختلط' },
+  };
+  return texts[method]?.[locale] || method;
+};
+
 const generateItemsTableRows = (items: InvoiceItem[], locale: 'en' | 'ar'): string => {
-  return items.map((item, index) => `
-    <tr>
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center; color: #6b7280;">${index + 1}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">
-        <div style="font-weight: 500; color: #1a1a2e;">${locale === 'ar' ? (item.nameAr || item.name) : item.name}</div>
-        ${item.sku ? `<div style="font-size: 11px; color: #8b8ba7; margin-top: 2px;">SKU: ${item.sku}</div>` : ''}
+  return items.map((item, index) => {
+    const hasDiscount = item.discount && item.discount > 0;
+    const rowBg = index % 2 === 0 ? '#ffffff' : '#f9fafb';
+    return `
+    <tr style="background: ${rowBg};">
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 13px;">${index + 1}</td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb;">
+        <div style="font-weight: 600; color: #111827; font-size: 13px;">${escapeHtml(locale === 'ar' ? (item.nameAr || item.name) : item.name)}</div>
+        ${item.nameAr && locale !== 'ar' ? `<div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">${escapeHtml(item.nameAr)}</div>` : ''}
+        ${item.sku ? `<div style="font-size: 11px; color: #9ca3af; margin-top: 1px; font-family: 'Courier New', monospace;">${escapeHtml(item.sku)}</div>` : ''}
       </td>
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${item.quantity} ${item.unit || ''}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: ${locale === 'ar' ? 'left' : 'right'};">
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 13px;">${item.quantity} ${escapeHtml(item.unit || '')}</td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: ${locale === 'ar' ? 'left' : 'right'}; font-size: 13px;">
         <div>${formatCurrency(item.unitPrice, 'USD', locale)}</div>
-        <div style="font-size: 11px; color: #8b8ba7;">${formatCurrency(item.unitPriceSdg, 'SDG', locale)}</div>
+        <div style="font-size: 11px; color: #9ca3af;">${formatCurrency(item.unitPriceSdg, 'SDG', locale)}</div>
       </td>
-      ${item.discount ? `<td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center; color: #ef4444;">${item.discountType === 'PERCENTAGE' ? `${item.discount}%` : formatCurrency(item.discount, 'USD', locale)}</td>` : '<td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">-</td>'}
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: ${locale === 'ar' ? 'left' : 'right'}; font-weight: 600;">
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 13px; color: ${hasDiscount ? '#dc2626' : '#9ca3af'};">
+        ${hasDiscount ? (item.discountType === 'PERCENTAGE' ? `${item.discount}%` : formatCurrency(item.discount!, 'USD', locale)) : '—'}
+      </td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: ${locale === 'ar' ? 'left' : 'right'}; font-weight: 600; font-size: 13px;">
         <div>${formatCurrency(item.total, 'USD', locale)}</div>
-        <div style="font-size: 11px; color: #8b8ba7; font-weight: 400;">${formatCurrency(item.totalSdg, 'SDG', locale)}</div>
+        <div style="font-size: 11px; color: #9ca3af; font-weight: 400;">${formatCurrency(item.totalSdg, 'SDG', locale)}</div>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 };
 
 export const generateInvoiceHTML = (
@@ -98,18 +129,21 @@ export const generateInvoiceHTML = (
   const { locale } = options;
   const isRtl = locale === 'ar';
   const dir = isRtl ? 'rtl' : 'ltr';
-  
+  const alignStart = isRtl ? 'right' : 'left';
+  const alignEnd = isRtl ? 'left' : 'right';
+
   const party = invoice.invoiceType === 'SALES' ? invoice.customer : invoice.supplier;
-  const partyLabel = invoice.invoiceType === 'SALES' 
+  const partyLabel = invoice.invoiceType === 'SALES'
     ? (locale === 'ar' ? 'العميل' : 'Customer')
     : (locale === 'ar' ? 'المورد' : 'Supplier');
 
-  const labels = {
-    invoice: locale === 'ar' ? 'فاتورة' : 'INVOICE',
+  const L = {
     invoiceNo: locale === 'ar' ? 'رقم الفاتورة' : 'Invoice No.',
+    invoiceType: locale === 'ar' ? 'نوع الفاتورة' : 'Invoice Type',
     date: locale === 'ar' ? 'التاريخ' : 'Date',
     dueDate: locale === 'ar' ? 'تاريخ الاستحقاق' : 'Due Date',
     status: locale === 'ar' ? 'الحالة' : 'Status',
+    from: locale === 'ar' ? 'من' : 'From',
     billTo: locale === 'ar' ? 'فاتورة إلى' : 'Bill To',
     item: locale === 'ar' ? 'الصنف' : 'Item',
     qty: locale === 'ar' ? 'الكمية' : 'Qty',
@@ -117,531 +151,533 @@ export const generateInvoiceHTML = (
     discount: locale === 'ar' ? 'الخصم' : 'Discount',
     total: locale === 'ar' ? 'الإجمالي' : 'Total',
     subtotal: locale === 'ar' ? 'المجموع الفرعي' : 'Subtotal',
-    tax: locale === 'ar' ? 'الضريبة' : 'Tax',
+    taxLabel: locale === 'ar' ? 'الضريبة' : 'Tax',
     grandTotal: locale === 'ar' ? 'الإجمالي الكلي' : 'Grand Total',
     amountPaid: locale === 'ar' ? 'المبلغ المدفوع' : 'Amount Paid',
     amountDue: locale === 'ar' ? 'المبلغ المستحق' : 'Amount Due',
     exchangeRate: locale === 'ar' ? 'سعر الصرف' : 'Exchange Rate',
+    paymentMethod: locale === 'ar' ? 'طريقة الدفع' : 'Payment Method',
     notes: locale === 'ar' ? 'ملاحظات' : 'Notes',
-    terms: locale === 'ar' ? 'الشروط والأحكام' : 'Terms & Conditions',
-    bankDetails: locale === 'ar' ? 'التفاصيل البنكية' : 'Bank Details',
-    bankName: locale === 'ar' ? 'اسم البنك' : 'Bank Name',
+    bankDetails: locale === 'ar' ? 'بيانات الحساب البنكي' : 'Bank Details',
+    bankName: locale === 'ar' ? 'البنك' : 'Bank',
     accountNo: locale === 'ar' ? 'رقم الحساب' : 'Account No.',
+    iban: locale === 'ar' ? 'الآيبان' : 'IBAN',
     thankYou: locale === 'ar' ? 'شكراً لتعاملكم معنا' : 'Thank you for your business!',
-    phone: locale === 'ar' ? 'الهاتف' : 'Phone',
-    email: locale === 'ar' ? 'البريد' : 'Email',
+    phone: locale === 'ar' ? 'هاتف' : 'Tel',
+    email: locale === 'ar' ? 'بريد' : 'Email',
     poNumber: locale === 'ar' ? 'رقم أمر الشراء' : 'PO Number',
     operationNo: locale === 'ar' ? 'رقم العملية' : 'Operation No.',
+    taxId: locale === 'ar' ? 'الرقم الضريبي' : 'Tax ID',
+    page: locale === 'ar' ? 'صفحة' : 'Page',
+    walkIn: locale === 'ar' ? 'عميل نقدي' : 'Walk-in Customer',
+    discountRow: locale === 'ar' ? 'الخصم' : 'Discount',
   };
 
-  return `
-<!DOCTYPE html>
+  // System font stacks - no external loading required
+  const fontFamily = isRtl
+    ? "'Geeza Pro', 'Arabic Typesetting', 'Traditional Arabic', 'Noto Sans Arabic', Arial, sans-serif"
+    : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+  const statusColor = getStatusColor(invoice.paymentStatus);
+
+  return `<!DOCTYPE html>
 <html lang="${locale}" dir="${dir}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700&display=swap');
-    
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      font-family: ${isRtl ? "'Noto Sans Arabic', 'Inter', sans-serif" : "'Inter', 'Noto Sans Arabic', sans-serif"};
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-      color: #1a1a2e;
-      line-height: 1.6;
-      padding: 20px;
+      font-family: ${fontFamily};
+      background: #f3f4f6;
+      color: #111827;
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 24px;
+      direction: ${dir};
     }
-    
-    .invoice-container {
-      max-width: 800px;
+
+    .invoice-wrap {
+      max-width: 794px;
       margin: 0 auto;
       background: #ffffff;
-      border-radius: 20px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
-      overflow: hidden;
+      border: 1px solid #d1d5db;
     }
-    
-    .invoice-header {
-      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-      padding: 40px;
-      color: white;
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .invoice-header::before {
-      content: '';
-      position: absolute;
-      top: -50%;
-      ${isRtl ? 'left' : 'right'}: -20%;
-      width: 60%;
-      height: 200%;
-      background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 100%);
-      transform: rotate(-15deg);
-    }
-    
-    .header-content {
+
+    /* ---- TOP HEADER ---- */
+    .inv-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      position: relative;
-      z-index: 1;
+      padding: 24px 28px 20px;
+      border-bottom: 2px solid #111827;
     }
-    
-    .company-info {
-      flex: 1;
+
+    .inv-header-left {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
     }
-    
-    .logo-container {
-      width: 100px;
-      height: 100px;
-      background: white;
-      border-radius: 16px;
-      padding: 10px;
+
+    .inv-logo {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+
+    .inv-logo-placeholder {
+      width: 72px;
+      height: 72px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-    }
-    
-    .logo-container img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-    }
-    
-    .company-name {
-      font-size: 28px;
-      font-weight: 700;
-      margin-bottom: 8px;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    
-    .company-details {
-      font-size: 13px;
-      opacity: 0.9;
-      line-height: 1.8;
-    }
-    
-    .invoice-title-section {
-      background: #f8f9fa;
-      padding: 30px 40px;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    
-    .invoice-title-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    
-    .invoice-type-badge {
-      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-      color: white;
-      padding: 8px 20px;
-      border-radius: 30px;
-      font-weight: 600;
-      font-size: 14px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    
-    .invoice-number {
-      font-size: 24px;
-      font-weight: 700;
-      color: #1a1a2e;
-      font-family: 'Courier New', monospace;
-    }
-    
-    .invoice-meta {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 20px;
-    }
-    
-    .meta-item {
-      background: white;
-      padding: 15px 20px;
-      border-radius: 12px;
-      border: 1px solid #e5e7eb;
-    }
-    
-    .meta-label {
       font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #8b8ba7;
-      margin-bottom: 5px;
-    }
-    
-    .meta-value {
-      font-size: 15px;
-      font-weight: 600;
-      color: #1a1a2e;
-    }
-    
-    .status-badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    
-    .parties-section {
-      padding: 30px 40px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 30px;
-      background: white;
-    }
-    
-    .party-card {
-      background: #f8f9fa;
-      padding: 25px;
-      border-radius: 16px;
-      border: 1px solid #e5e7eb;
-    }
-    
-    .party-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #6366f1;
-      margin-bottom: 12px;
-      font-weight: 600;
-    }
-    
-    .party-name {
-      font-size: 18px;
       font-weight: 700;
-      color: #1a1a2e;
-      margin-bottom: 10px;
-    }
-    
-    .party-details {
-      font-size: 13px;
-      color: #6b7280;
-      line-height: 1.8;
-    }
-    
-    .items-section {
-      padding: 0 40px 30px;
-    }
-    
-    .items-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
-    
-    .items-table thead {
-      background: linear-gradient(135deg, #1a1a2e 0%, #2a2a3e 100%);
-      color: white;
-    }
-    
-    .items-table th {
-      padding: 16px;
-      text-align: ${isRtl ? 'right' : 'left'};
-      font-weight: 600;
-      font-size: 12px;
-      text-transform: uppercase;
+      color: #374151;
       letter-spacing: 1px;
+      flex-shrink: 0;
+      background: #f9fafb;
     }
-    
-    .items-table th:first-child {
-      border-radius: ${isRtl ? '0 12px 0 0' : '12px 0 0 0'};
-    }
-    
-    .items-table th:last-child {
-      border-radius: ${isRtl ? '12px 0 0 0' : '0 12px 0 0'};
-    }
-    
-    .totals-section {
-      padding: 0 40px 40px;
-    }
-    
-    .totals-container {
-      background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f5 100%);
-      border-radius: 16px;
-      padding: 25px;
-      margin-${isRtl ? 'right' : 'left'}: auto;
-      width: 350px;
-    }
-    
-    .totals-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px dashed #e5e7eb;
-    }
-    
-    .totals-row:last-child {
-      border-bottom: none;
-    }
-    
-    .totals-row.grand-total {
-      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-      color: white;
-      margin: 15px -25px -25px;
-      padding: 20px 25px;
-      border-radius: 0 0 16px 16px;
-    }
-    
-    .totals-label {
-      color: #6b7280;
-      font-size: 14px;
-    }
-    
-    .totals-value {
-      font-weight: 600;
-      font-size: 15px;
-    }
-    
-    .totals-row.grand-total .totals-label,
-    .totals-row.grand-total .totals-value {
-      color: white;
-      font-size: 16px;
-    }
-    
-    .totals-row.grand-total .totals-value {
+
+    .inv-company-name {
       font-size: 20px;
       font-weight: 700;
+      color: #111827;
+      line-height: 1.2;
+      margin-bottom: 2px;
     }
-    
-    .sdg-value {
-      font-size: 12px;
-      color: #8b8ba7;
-      margin-top: 2px;
-    }
-    
-    .notes-section {
-      padding: 0 40px 40px;
-    }
-    
-    .notes-card {
-      background: #fffbeb;
-      border: 1px solid #fcd34d;
-      border-radius: 12px;
-      padding: 20px;
-    }
-    
-    .notes-title {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #92400e;
-      margin-bottom: 10px;
+
+    .inv-company-name-ar {
+      font-size: 15px;
       font-weight: 600;
+      color: #374151;
+      margin-bottom: 6px;
     }
-    
-    .notes-text {
-      font-size: 14px;
-      color: #78350f;
+
+    .inv-company-detail {
+      font-size: 12px;
+      color: #6b7280;
       line-height: 1.6;
     }
-    
-    .footer-section {
-      background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
-      padding: 40px;
-      color: white;
+
+    .inv-header-right {
+      text-align: ${alignEnd};
+      flex-shrink: 0;
     }
-    
-    .footer-content {
+
+    .inv-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: #111827;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+
+    .inv-number-box {
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 8px 14px;
+      font-size: 13px;
+    }
+
+    .inv-number-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #9ca3af;
+      margin-bottom: 2px;
+    }
+
+    .inv-number-value {
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      font-size: 14px;
+      color: #111827;
+    }
+
+    /* ---- META STRIP ---- */
+    .inv-meta-strip {
+      display: flex;
+      border-bottom: 1px solid #e5e7eb;
+      background: #f9fafb;
+    }
+
+    .inv-meta-cell {
+      flex: 1;
+      padding: 10px 14px;
+      border-${alignEnd}: 1px solid #e5e7eb;
+    }
+
+    .inv-meta-cell:last-child {
+      border-${alignEnd}: none;
+    }
+
+    .inv-meta-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #9ca3af;
+      margin-bottom: 3px;
+    }
+
+    .inv-meta-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .status-pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid;
+    }
+
+    /* ---- PARTIES ---- */
+    .inv-parties {
+      display: flex;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .inv-party {
+      flex: 1;
+      padding: 16px 20px;
+      border-${alignEnd}: 1px solid #e5e7eb;
+    }
+
+    .inv-party:last-child {
+      border-${alignEnd}: none;
+    }
+
+    .inv-party-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #9ca3af;
+      margin-bottom: 6px;
+    }
+
+    .inv-party-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 4px;
+    }
+
+    .inv-party-detail {
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.6;
+    }
+
+    /* ---- ITEMS TABLE ---- */
+    .inv-items-wrap {
+      padding: 0;
+    }
+
+    .inv-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .inv-table thead tr {
+      background: #111827;
+      color: #ffffff;
+    }
+
+    .inv-table th {
+      padding: 10px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      text-align: ${alignStart};
+    }
+
+    .inv-table th.center { text-align: center; }
+    .inv-table th.end { text-align: ${alignEnd}; }
+
+    .inv-table tbody tr:last-child td {
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    /* ---- TOTALS ---- */
+    .inv-totals-wrap {
+      display: flex;
+      justify-content: flex-end;
+      padding: 16px 20px 16px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .inv-totals-table {
+      width: 300px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .inv-totals-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 14px;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 13px;
+    }
+
+    .inv-totals-row:last-child {
+      border-bottom: none;
+    }
+
+    .inv-totals-row.grand {
+      background: #111827;
+      color: #ffffff;
+    }
+
+    .inv-totals-label {
+      color: #6b7280;
+    }
+
+    .inv-totals-row.grand .inv-totals-label {
+      color: #d1d5db;
+      font-weight: 600;
+    }
+
+    .inv-totals-value {
+      font-weight: 600;
+      text-align: ${alignEnd};
+    }
+
+    .inv-totals-row.grand .inv-totals-value {
+      color: #ffffff;
+    }
+
+    .inv-totals-sdg {
+      font-size: 11px;
+      color: #9ca3af;
+      font-weight: 400;
+    }
+
+    .inv-totals-row.grand .inv-totals-sdg {
+      color: rgba(255,255,255,0.6);
+    }
+
+    /* ---- NOTES ---- */
+    .inv-notes {
+      padding: 14px 20px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #fffbeb;
+    }
+
+    .inv-notes-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #92400e;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .inv-notes-text {
+      font-size: 13px;
+      color: #78350f;
+    }
+
+    /* ---- FOOTER ---- */
+    .inv-footer {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
+      padding: 16px 20px;
+      background: #f9fafb;
+      border-top: 2px solid #111827;
+      gap: 24px;
     }
-    
-    .bank-details {
-      background: rgba(255, 255, 255, 0.1);
-      padding: 20px;
-      border-radius: 12px;
+
+    .inv-bank-section {
       flex: 1;
-      margin-${isRtl ? 'left' : 'right'}: 30px;
     }
-    
-    .bank-title {
-      font-size: 12px;
+
+    .inv-bank-label {
+      font-size: 10px;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #a1a1aa;
-      margin-bottom: 15px;
+      letter-spacing: 0.8px;
+      color: #6b7280;
+      font-weight: 600;
+      margin-bottom: 6px;
     }
-    
-    .bank-row {
+
+    .inv-bank-row {
       display: flex;
-      justify-content: space-between;
-      margin-bottom: 8px;
-      font-size: 14px;
+      gap: 6px;
+      font-size: 12px;
+      margin-bottom: 3px;
     }
-    
-    .bank-label {
-      color: #a1a1aa;
+
+    .inv-bank-key {
+      color: #9ca3af;
+      flex-shrink: 0;
     }
-    
-    .bank-value {
+
+    .inv-bank-val {
+      color: #111827;
       font-weight: 500;
     }
-    
-    .thank-you {
+
+    .inv-footer-brand {
       text-align: center;
-      flex: 1;
+      flex-shrink: 0;
     }
-    
-    .thank-you-text {
-      font-size: 18px;
-      font-weight: 600;
-      color: #6366f1;
-      margin-bottom: 10px;
+
+    .inv-thankyou {
+      font-size: 14px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 4px;
     }
-    
-    .contact-info {
-      font-size: 13px;
-      color: #a1a1aa;
+
+    .inv-contact {
+      font-size: 11px;
+      color: #9ca3af;
+      line-height: 1.5;
     }
-    
-    .watermark {
+
+    .inv-watermark {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%) rotate(-45deg);
-      font-size: 100px;
-      font-weight: 700;
-      color: rgba(99, 102, 241, 0.05);
+      font-size: 90px;
+      font-weight: 800;
+      color: rgba(17,24,39,0.04);
       text-transform: uppercase;
       pointer-events: none;
       z-index: 0;
+      white-space: nowrap;
     }
-    
+
     @media print {
-      body {
-        padding: 0;
-        background: white;
-      }
-      
-      .invoice-container {
-        box-shadow: none;
-        border-radius: 0;
-      }
+      body { padding: 0; background: #fff; }
+      .invoice-wrap { border: none; }
     }
   </style>
 </head>
 <body>
-  ${options.watermark ? `<div class="watermark">${options.watermark}</div>` : ''}
-  
-  <div class="invoice-container">
-    <!-- Header -->
-    <div class="invoice-header">
-      <div class="header-content">
-        <div class="company-info">
-          <div class="company-name">${isRtl ? company.nameAr : company.name}</div>
-          <div class="company-details">
-            ${isRtl ? company.addressAr : company.address}<br>
-            ${labels.phone}: ${company.phone}<br>
-            ${labels.email}: ${company.email}
-            ${company.taxId ? `<br>Tax ID: ${company.taxId}` : ''}
+  ${options.watermark ? `<div class="inv-watermark">${escapeHtml(options.watermark)}</div>` : ''}
+
+  <div class="invoice-wrap">
+
+    <!-- HEADER: Logo + Company | Invoice Title + Number -->
+    <div class="inv-header">
+      <div class="inv-header-left">
+        ${logoBase64
+          ? `<img src="${logoBase64}" class="inv-logo" alt="Logo">`
+          : `<div class="inv-logo-placeholder">GOLDEN</div>`}
+        <div>
+          <div class="inv-company-name">${escapeHtml(company.name)}</div>
+          <div class="inv-company-name-ar">${escapeHtml(company.nameAr)}</div>
+          <div class="inv-company-detail">
+            ${escapeHtml(company.address)}<br>
+            ${escapeHtml(company.addressAr)}<br>
+            ${L.phone}: ${escapeHtml(company.phone)}&nbsp;&nbsp;|&nbsp;&nbsp;${L.email}: ${escapeHtml(company.email)}
+            ${company.taxId ? `<br>${L.taxId}: ${escapeHtml(company.taxId)}` : ''}
           </div>
         </div>
-        <div class="logo-container">
-          ${logoBase64 ? `<img src="${logoBase64}" alt="Logo">` : '<div style="color: #6366f1; font-weight: 700; font-size: 24px;">GOLDEN</div>'}
+      </div>
+
+      <div class="inv-header-right">
+        <div class="inv-title">${getInvoiceTypeText(invoice.invoiceType, locale)}</div>
+        <div class="inv-number-box">
+          <div class="inv-number-label">${L.invoiceNo}</div>
+          <div class="inv-number-value">${escapeHtml(invoice.invoiceNumber)}</div>
         </div>
       </div>
     </div>
-    
-    <!-- Invoice Title Section -->
-    <div class="invoice-title-section">
-      <div class="invoice-title-row">
-        <span class="invoice-type-badge">${getInvoiceTypeText(invoice.invoiceType, locale)}</span>
-        <span class="invoice-number">${invoice.invoiceNumber}</span>
+
+    <!-- META STRIP: Date | Due Date | Status | Exchange Rate | PO/Op No -->
+    <div class="inv-meta-strip">
+      <div class="inv-meta-cell">
+        <div class="inv-meta-label">${L.date}</div>
+        <div class="inv-meta-value">${formatDate(invoice.invoiceDate, locale)}</div>
       </div>
-      
-      <div class="invoice-meta">
-        <div class="meta-item">
-          <div class="meta-label">${labels.date}</div>
-          <div class="meta-value">${formatDate(invoice.invoiceDate, locale)}</div>
+      ${invoice.dueDate ? `
+      <div class="inv-meta-cell">
+        <div class="inv-meta-label">${L.dueDate}</div>
+        <div class="inv-meta-value">${formatDate(invoice.dueDate, locale)}</div>
+      </div>` : ''}
+      <div class="inv-meta-cell">
+        <div class="inv-meta-label">${L.status}</div>
+        <div class="inv-meta-value">
+          <span class="status-pill" style="color:${statusColor}; border-color:${statusColor}; background:${statusColor}18;">
+            ${getStatusText(invoice.paymentStatus, locale)}
+          </span>
         </div>
-        ${invoice.dueDate ? `
-        <div class="meta-item">
-          <div class="meta-label">${labels.dueDate}</div>
-          <div class="meta-value">${formatDate(invoice.dueDate, locale)}</div>
+      </div>
+      <div class="inv-meta-cell">
+        <div class="inv-meta-label">${L.exchangeRate}</div>
+        <div class="inv-meta-value">1 USD = ${invoice.exchangeRate.toLocaleString()} SDG</div>
+      </div>
+      ${invoice.poNumber ? `
+      <div class="inv-meta-cell">
+        <div class="inv-meta-label">${L.poNumber}</div>
+        <div class="inv-meta-value">${escapeHtml(invoice.poNumber)}</div>
+      </div>` : ''}
+      ${invoice.operationNumber ? `
+      <div class="inv-meta-cell">
+        <div class="inv-meta-label">${L.operationNo}</div>
+        <div class="inv-meta-value">${escapeHtml(invoice.operationNumber)}</div>
+      </div>` : ''}
+      ${invoice.paymentMethod ? `
+      <div class="inv-meta-cell">
+        <div class="inv-meta-label">${L.paymentMethod}</div>
+        <div class="inv-meta-value">${getPaymentMethodText(invoice.paymentMethod, locale)}</div>
+      </div>` : ''}
+    </div>
+
+    <!-- PARTIES: From | To -->
+    <div class="inv-parties">
+      <div class="inv-party">
+        <div class="inv-party-label">${L.from}</div>
+        <div class="inv-party-name">${escapeHtml(isRtl ? company.nameAr : company.name)}</div>
+        <div class="inv-party-detail">
+          ${escapeHtml(isRtl ? company.addressAr : company.address)}<br>
+          ${L.phone}: ${escapeHtml(company.phone)}<br>
+          ${L.email}: ${escapeHtml(company.email)}
         </div>
-        ` : ''}
-        <div class="meta-item">
-          <div class="meta-label">${labels.status}</div>
-          <div class="meta-value">
-            <span class="status-badge" style="background: ${getStatusColor(invoice.paymentStatus)}20; color: ${getStatusColor(invoice.paymentStatus)}">
-              ${getStatusText(invoice.paymentStatus, locale)}
-            </span>
-          </div>
+      </div>
+      <div class="inv-party">
+        <div class="inv-party-label">${partyLabel}</div>
+        ${party ? `
+        <div class="inv-party-name">${escapeHtml(isRtl ? (party.nameAr || party.name) : party.name)}</div>
+        <div class="inv-party-detail">
+          ${party.address ? `${escapeHtml(isRtl ? (party.addressAr || party.address) : party.address)}<br>` : ''}
+          ${party.phone ? `${L.phone}: ${escapeHtml(party.phone)}<br>` : ''}
+          ${party.email ? `${L.email}: ${escapeHtml(party.email)}<br>` : ''}
+          ${party.taxId ? `${L.taxId}: ${escapeHtml(party.taxId)}` : ''}
         </div>
-        <div class="meta-item">
-          <div class="meta-label">${labels.exchangeRate}</div>
-          <div class="meta-value">1 USD = ${invoice.exchangeRate.toLocaleString()} SDG</div>
-        </div>
-        ${invoice.poNumber ? `
-        <div class="meta-item">
-          <div class="meta-label">${labels.poNumber}</div>
-          <div class="meta-value">${invoice.poNumber}</div>
-        </div>
-        ` : ''}
-        ${invoice.operationNumber ? `
-        <div class="meta-item">
-          <div class="meta-label">${labels.operationNo}</div>
-          <div class="meta-value">${invoice.operationNumber}</div>
-        </div>
-        ` : ''}
+        ` : `<div class="inv-party-name">${L.walkIn}</div>`}
       </div>
     </div>
-    
-    <!-- Parties Section -->
-    <div class="parties-section">
-      <div class="party-card">
-        <div class="party-label">${locale === 'ar' ? 'من' : 'From'}</div>
-        <div class="party-name">${isRtl ? company.nameAr : company.name}</div>
-        <div class="party-details">
-          ${isRtl ? company.addressAr : company.address}<br>
-          ${labels.phone}: ${company.phone}<br>
-          ${labels.email}: ${company.email}
-        </div>
-      </div>
-      
-      ${party ? `
-      <div class="party-card">
-        <div class="party-label">${partyLabel}</div>
-        <div class="party-name">${isRtl ? (party.nameAr || party.name) : party.name}</div>
-        <div class="party-details">
-          ${party.address ? `${isRtl ? (party.addressAr || party.address) : party.address}<br>` : ''}
-          ${party.phone ? `${labels.phone}: ${party.phone}<br>` : ''}
-          ${party.email ? `${labels.email}: ${party.email}` : ''}
-          ${party.taxId ? `<br>Tax ID: ${party.taxId}` : ''}
-        </div>
-      </div>
-      ` : `
-      <div class="party-card">
-        <div class="party-label">${partyLabel}</div>
-        <div class="party-name">${locale === 'ar' ? 'عميل نقدي' : 'Walk-in Customer'}</div>
-      </div>
-      `}
-    </div>
-    
-    <!-- Items Section -->
-    <div class="items-section">
-      <table class="items-table">
+
+    <!-- ITEMS TABLE -->
+    <div class="inv-items-wrap">
+      <table class="inv-table">
         <thead>
           <tr>
-            <th style="width: 50px; text-align: center;">#</th>
-            <th>${labels.item}</th>
-            <th style="width: 80px; text-align: center;">${labels.qty}</th>
-            <th style="width: 120px; text-align: ${isRtl ? 'left' : 'right'};">${labels.unitPrice}</th>
-            <th style="width: 80px; text-align: center;">${labels.discount}</th>
-            <th style="width: 130px; text-align: ${isRtl ? 'left' : 'right'};">${labels.total}</th>
+            <th class="center" style="width:40px;">#</th>
+            <th>${L.item}</th>
+            <th class="center" style="width:80px;">${L.qty}</th>
+            <th class="end" style="width:120px;">${L.unitPrice}</th>
+            <th class="center" style="width:80px;">${L.discount}</th>
+            <th class="end" style="width:130px;">${L.total}</th>
           </tr>
         </thead>
         <tbody>
@@ -649,100 +685,83 @@ export const generateInvoiceHTML = (
         </tbody>
       </table>
     </div>
-    
-    <!-- Totals Section -->
-    <div class="totals-section">
-      <div class="totals-container">
-        <div class="totals-row">
-          <span class="totals-label">${labels.subtotal}</span>
-          <span class="totals-value">
+
+    <!-- TOTALS -->
+    <div class="inv-totals-wrap">
+      <div class="inv-totals-table">
+        <div class="inv-totals-row">
+          <span class="inv-totals-label">${L.subtotal}</span>
+          <span class="inv-totals-value">
             ${formatCurrency(invoice.subtotal, 'USD', locale)}
-            <div class="sdg-value">${formatCurrency(invoice.subtotalSdg, 'SDG', locale)}</div>
+            <div class="inv-totals-sdg">${formatCurrency(invoice.subtotalSdg, 'SDG', locale)}</div>
           </span>
         </div>
         ${invoice.discount > 0 ? `
-        <div class="totals-row">
-          <span class="totals-label">${labels.discount}</span>
-          <span class="totals-value" style="color: #ef4444;">
+        <div class="inv-totals-row">
+          <span class="inv-totals-label" style="color:#dc2626;">${L.discountRow}</span>
+          <span class="inv-totals-value" style="color:#dc2626;">
             -${formatCurrency(invoice.discount, 'USD', locale)}
-            <div class="sdg-value">-${formatCurrency(invoice.discountSdg, 'SDG', locale)}</div>
+            <div class="inv-totals-sdg" style="color:#fca5a5;">-${formatCurrency(invoice.discountSdg, 'SDG', locale)}</div>
           </span>
-        </div>
-        ` : ''}
+        </div>` : ''}
         ${invoice.tax > 0 ? `
-        <div class="totals-row">
-          <span class="totals-label">${labels.tax}</span>
-          <span class="totals-value">
+        <div class="inv-totals-row">
+          <span class="inv-totals-label">${L.taxLabel}</span>
+          <span class="inv-totals-value">
             ${formatCurrency(invoice.tax, 'USD', locale)}
-            <div class="sdg-value">${formatCurrency(invoice.taxSdg, 'SDG', locale)}</div>
+            <div class="inv-totals-sdg">${formatCurrency(invoice.taxSdg, 'SDG', locale)}</div>
           </span>
-        </div>
-        ` : ''}
+        </div>` : ''}
         ${options.includePaymentDetails && invoice.amountPaid > 0 ? `
-        <div class="totals-row">
-          <span class="totals-label">${labels.amountPaid}</span>
-          <span class="totals-value" style="color: #10b981;">
+        <div class="inv-totals-row">
+          <span class="inv-totals-label" style="color:#16a34a;">${L.amountPaid}</span>
+          <span class="inv-totals-value" style="color:#16a34a;">
             ${formatCurrency(invoice.amountPaid, 'USD', locale)}
-            <div class="sdg-value">${formatCurrency(invoice.amountPaidSdg, 'SDG', locale)}</div>
+            <div class="inv-totals-sdg" style="color:#86efac;">${formatCurrency(invoice.amountPaidSdg, 'SDG', locale)}</div>
           </span>
         </div>
-        <div class="totals-row">
-          <span class="totals-label">${labels.amountDue}</span>
-          <span class="totals-value" style="color: #f59e0b;">
+        <div class="inv-totals-row">
+          <span class="inv-totals-label" style="color:#d97706;">${L.amountDue}</span>
+          <span class="inv-totals-value" style="color:#d97706;">
             ${formatCurrency(invoice.amountDue, 'USD', locale)}
-            <div class="sdg-value">${formatCurrency(invoice.amountDueSdg, 'SDG', locale)}</div>
+            <div class="inv-totals-sdg" style="color:#fcd34d;">${formatCurrency(invoice.amountDueSdg, 'SDG', locale)}</div>
           </span>
-        </div>
-        ` : ''}
-        <div class="totals-row grand-total">
-          <span class="totals-label">${labels.grandTotal}</span>
-          <span class="totals-value">
+        </div>` : ''}
+        <div class="inv-totals-row grand">
+          <span class="inv-totals-label">${L.grandTotal}</span>
+          <span class="inv-totals-value">
             ${formatCurrency(invoice.total, 'USD', locale)}
-            <div class="sdg-value" style="color: rgba(255,255,255,0.8);">${formatCurrency(invoice.totalSdg, 'SDG', locale)}</div>
+            <div class="inv-totals-sdg">${formatCurrency(invoice.totalSdg, 'SDG', locale)}</div>
           </span>
         </div>
       </div>
     </div>
-    
-    <!-- Notes Section -->
+
+    <!-- NOTES -->
     ${(invoice.notes || invoice.notesAr) ? `
-    <div class="notes-section">
-      <div class="notes-card">
-        <div class="notes-title">${labels.notes}</div>
-        <div class="notes-text">${isRtl ? (invoice.notesAr || invoice.notes) : invoice.notes}</div>
-      </div>
-    </div>
-    ` : ''}
-    
-    <!-- Footer Section -->
-    <div class="footer-section">
-      <div class="footer-content">
-        ${options.includeBankDetails && company.bankName ? `
-        <div class="bank-details">
-          <div class="bank-title">${labels.bankDetails}</div>
-          <div class="bank-row">
-            <span class="bank-label">${labels.bankName}:</span>
-            <span class="bank-value">${company.bankName}</span>
-          </div>
-          <div class="bank-row">
-            <span class="bank-label">${labels.accountNo}:</span>
-            <span class="bank-value">${company.bankAccount}</span>
-          </div>
-        </div>
-        ` : '<div></div>'}
-        
-        <div class="thank-you">
-          <div class="thank-you-text">${labels.thankYou}</div>
-          <div class="contact-info">
-            ${company.website || ''}<br>
-            ${company.email}
-          </div>
+    <div class="inv-notes">
+      <div class="inv-notes-label">${L.notes}</div>
+      <div class="inv-notes-text">${escapeHtml(isRtl ? (invoice.notesAr || invoice.notes) : invoice.notes)}</div>
+    </div>` : ''}
+
+    <!-- FOOTER: Bank Details | Thank You -->
+    <div class="inv-footer">
+      ${options.includeBankDetails && company.bankName ? `
+      <div class="inv-bank-section">
+        <div class="inv-bank-label">${L.bankDetails}</div>
+        <div class="inv-bank-row"><span class="inv-bank-key">${L.bankName}:</span><span class="inv-bank-val">${escapeHtml(company.bankName)}</span></div>
+        <div class="inv-bank-row"><span class="inv-bank-key">${L.accountNo}:</span><span class="inv-bank-val">${escapeHtml(company.bankAccount || '')}</span></div>
+      </div>` : '<div></div>'}
+      <div class="inv-footer-brand">
+        <div class="inv-thankyou">${L.thankYou}</div>
+        <div class="inv-contact">
+          ${company.website ? `${escapeHtml(company.website)}<br>` : ''}
+          ${escapeHtml(company.email)}
         </div>
       </div>
     </div>
+
   </div>
 </body>
-</html>
-  `;
+</html>`;
 };
-

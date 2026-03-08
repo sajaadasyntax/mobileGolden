@@ -113,7 +113,6 @@ export interface InvoiceGenerationOptions {
   locale: 'en' | 'ar';
   includePaymentDetails?: boolean;
   includeBankDetails?: boolean;
-  showQrCode?: boolean;
   watermark?: string;
 }
 

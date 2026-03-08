@@ -458,9 +458,6 @@ export const api = {
       
       return itemsWithPrices;
     },
-    stock: (branchId: string) => 
-      trpcQuery<any>('inventory.stock.list', { branchId }),
-    
     shelves: () => 
       trpcQuery<any>('inventory.shelves.list', {}),
     
@@ -646,21 +643,6 @@ export const api = {
         transactionCount?: number;
       }) => trpcMutation<any>('sales.dailyAggregate.update', { shelfId, ...data }),
     },
-  },
-  // Shelf requests (stock replenishment)
-  shelfRequests: {
-    list: (shelfId?: string, branchId?: string, page = 1) => 
-      trpcQuery<any>('inventory.shelfRequests.list', {
-        page,
-        ...(shelfId && { shelfId }),
-        ...(branchId && { branchId }),
-      }),
-    
-    create: (data: {
-      shelfId: string;
-      lines: { itemId: string; qty: number }[];
-      notes?: string;
-    }) => trpcMutation<any>('inventory.shelfRequests.create', data),
   },
   procurement: {
     orders: (branchId: string, page = 1, options?: { supplierId?: string; status?: string }) => 
