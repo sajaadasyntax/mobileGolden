@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -51,14 +52,17 @@ export default function SuppliersScreen() {
       setSuppliers(result?.result?.data?.data || result?.data || []);
     } catch (error) {
       console.error('Failed to load suppliers:', error);
+      Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', locale === 'ar' ? 'فشل تحميل الموردين' : 'Failed to load suppliers');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadSuppliers();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadSuppliers();
+    }, [])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -102,7 +106,7 @@ export default function SuppliersScreen() {
   const renderSupplier = ({ item }: { item: Supplier }) => (
     <TouchableOpacity 
       style={[styles.supplierCard, { backgroundColor: theme.card }, isRtl && styles.supplierCardRtl]}
-      onPress={() => router.push({ pathname: '/supplier-detail', params: { id: item.id } })}
+      onPress={() => router.push({ pathname: '/(drawer)/supplier-detail', params: { id: item.id } })}
     >
         <View style={[styles.supplierIcon, { backgroundColor: '#3b82f620' }]}>
           <Ionicons name="business" size={24} color="#3b82f6" />

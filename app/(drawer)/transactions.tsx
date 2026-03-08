@@ -11,6 +11,7 @@ import {
   Image,
   ScrollView,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocaleStore } from '@/stores/locale';
@@ -101,6 +102,7 @@ export default function TransactionsScreen() {
     } catch (error) {
       console.error('Failed to load transactions:', error);
       setTransactions([]);
+      Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', locale === 'ar' ? 'فشل تحميل المعاملات' : 'Failed to load transactions');
     } finally {
       setLoading(false);
     }
@@ -243,7 +245,7 @@ export default function TransactionsScreen() {
           </View>
         </View>
         {hasReceipts && (
-          <View style={styles.thumbnailRow}>
+          <View style={[styles.thumbnailRow, isRtl ? { paddingRight: 60, paddingLeft: 0 } : {}]}>
             {item.receiptImages!.slice(0, 3).map((uri, idx) => (
               <Image key={idx} source={{ uri }} style={styles.thumbnail} resizeMode="cover" />
             ))}
@@ -257,7 +259,7 @@ export default function TransactionsScreen() {
           </View>
         )}
         {!hasReceipts && (
-          <View style={[styles.noReceiptBadge, { borderColor: theme.warning + '50' }]}>
+          <View style={[styles.noReceiptBadge, { borderColor: theme.warning + '50' }, isRtl ? { marginRight: 60, marginLeft: 0 } : {}]}>
             <Ionicons name="alert-circle-outline" size={12} color={theme.warning} />
             <Text style={[styles.noReceiptText, { color: theme.warning }]}>
               {locale === 'ar' ? 'لا يوجد إيصال' : 'No receipt'}

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'expo-router';
 import {
   View,
   Text,
@@ -11,12 +12,21 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
+import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
 
 export default function RaiseNotificationScreen() {
+  const router = useRouter();
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
+  const { user } = useAuthStore();
   const isRtl = locale === 'ar';
+
+  useEffect(() => {
+    if (user && !['ADMIN', 'MANAGER', 'PROCUREMENT'].includes(user.role)) {
+      router.replace('/(drawer)/dashboard');
+    }
+  }, [user]);
   
   const [operationNumber, setOperationNumber] = useState('');
   const [amount, setAmount] = useState('');

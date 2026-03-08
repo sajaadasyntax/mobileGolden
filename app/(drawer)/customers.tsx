@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -52,14 +53,17 @@ export default function CustomersScreen() {
       setCustomers(result?.result?.data?.data || result?.data || []);
     } catch (error) {
       console.error('Failed to load customers:', error);
+      Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', locale === 'ar' ? 'فشل تحميل العملاء' : 'Failed to load customers');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadCustomers();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadCustomers();
+    }, [])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);

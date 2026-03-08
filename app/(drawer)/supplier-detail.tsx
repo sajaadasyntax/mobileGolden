@@ -175,7 +175,7 @@ export default function SupplierDetailScreen() {
     return (
       <TouchableOpacity
         style={[styles.orderCard, { backgroundColor: theme.card }, isRtl && styles.orderCardRtl]}
-        onPress={() => router.push({ pathname: '/po-detail', params: { id: item.id } })}
+        onPress={() => router.push({ pathname: '/(drawer)/po-detail', params: { id: item.id } })}
       >
         <View style={[styles.orderIcon, { backgroundColor: theme.warningBackground }]}>
           <Ionicons name="document-text" size={24} color={theme.warning} />
@@ -280,7 +280,7 @@ export default function SupplierDetailScreen() {
               {locale === 'ar' ? 'المعلقة' : 'Outstanding'}
             </Text>
             {activeTab === 'outstanding' && (
-              <View style={[styles.tabBadge, { backgroundColor: '#fff20' }]}>
+              <View style={[styles.tabBadge, { backgroundColor: '#fff' }]}>
                 <Text style={[styles.tabBadgeText, { color: '#fff' }]}>
                   {orders.filter((o) => !['FULLY_RECEIVED', 'CLOSED', 'CANCELLED'].includes(o.status)).length}
                 </Text>
@@ -305,7 +305,7 @@ export default function SupplierDetailScreen() {
               {locale === 'ar' ? 'قيد الانتظار' : 'Pending'}
             </Text>
             {activeTab === 'pending' && (
-              <View style={[styles.tabBadge, { backgroundColor: '#fff20' }]}>
+              <View style={[styles.tabBadge, { backgroundColor: '#fff' }]}>
                 <Text style={[styles.tabBadgeText, { color: '#fff' }]}>
                   {orders.filter((o) => ['DRAFT', 'APPROVED'].includes(o.status)).length}
                 </Text>
@@ -330,7 +330,7 @@ export default function SupplierDetailScreen() {
               {locale === 'ar' ? 'الكل' : 'All Orders'}
             </Text>
             {activeTab === 'all' && (
-              <View style={[styles.tabBadge, { backgroundColor: '#fff20' }]}>
+              <View style={[styles.tabBadge, { backgroundColor: '#fff' }]}>
                 <Text style={[styles.tabBadgeText, { color: '#fff' }]}>{orders.length}</Text>
               </View>
             )}

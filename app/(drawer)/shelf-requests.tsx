@@ -373,7 +373,7 @@ export default function ShelfRequestsScreen() {
       <View style={[styles.requestCard, { backgroundColor: theme.card }, isRtl && styles.requestCardRtl]}>
         <TouchableOpacity 
           style={styles.requestCardTouchable}
-          onPress={() => router.push({ pathname: '/shelf-request-detail', params: { id: item.id } })}
+          onPress={() => router.push({ pathname: '/(drawer)/shelf-request-detail', params: { id: item.id } })}
           activeOpacity={0.7}
         >
           <View style={[styles.requestIcon, { backgroundColor: canIssueRequest ? theme.primaryBackground : canApproveRequest ? theme.success + '20' : '#8b5cf620' }]}>

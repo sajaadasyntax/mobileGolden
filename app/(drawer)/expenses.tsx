@@ -90,6 +90,7 @@ export default function ExpensesScreen() {
     } catch (error) {
       console.error('Failed to load expenses:', error);
       setExpenses([]);
+      Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', locale === 'ar' ? 'فشل تحميل المصروفات' : 'Failed to load expenses');
     } finally {
       setLoading(false);
     }

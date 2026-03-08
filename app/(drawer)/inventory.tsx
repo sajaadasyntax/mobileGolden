@@ -8,6 +8,7 @@ import {
   TextInput,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -67,6 +68,7 @@ export default function InventoryScreen() {
       setShelves(shelvesData || []);
     } catch (error) {
       console.error('Failed to load warehouses and shelves:', error);
+      Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', locale === 'ar' ? 'فشل تحميل المستودعات' : 'Failed to load warehouses');
     }
   };
 
@@ -190,6 +192,7 @@ export default function InventoryScreen() {
     } catch (error) {
       console.error('Failed to load inventory:', error);
       setItems([]);
+      Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', locale === 'ar' ? 'فشل تحميل المخزون' : 'Failed to load inventory');
     } finally {
       setLoading(false);
     }
@@ -231,7 +234,7 @@ export default function InventoryScreen() {
 
   const handleItemPress = (item: Item) => {
     router.push({
-      pathname: '/product-stock-details',
+      pathname: '/(drawer)/product-stock-details',
       params: {
         itemId: item.id,
         ...(currentWarehouseId && { warehouseId: currentWarehouseId }),
@@ -250,7 +253,7 @@ export default function InventoryScreen() {
         onPress={() => handleItemPress(item)}
         activeOpacity={0.7}
       >
-        <View style={[styles.itemIcon, { backgroundColor: theme.primaryBackground }]}>
+        <View style={[styles.itemIcon, { backgroundColor: theme.primaryBackground }, isRtl ? { marginRight: 0, marginLeft: 12 } : {}]}>
           <Ionicons name="cube" size={24} color={theme.primary} />
         </View>
         

@@ -35,6 +35,13 @@ export default function DeferredInvoicesScreen() {
   const { theme } = useThemeStore();
   const { user } = useAuthStore();
   const isRtl = locale === 'ar';
+
+  useEffect(() => {
+    if (user && !['ADMIN', 'MANAGER', 'PROCUREMENT', 'ACCOUNTANT'].includes(user.role)) {
+      router.replace('/(drawer)/dashboard');
+    }
+  }, [user]);
+
   const [invoices, setInvoices] = useState<DeferredInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -149,7 +156,7 @@ export default function DeferredInvoicesScreen() {
             <TouchableOpacity
               key={invoice.id}
               style={[styles.invoiceCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-              onPress={() => router.push({ pathname: '/supplier-invoice-detail', params: { id: invoice.id } })}
+              onPress={() => router.push({ pathname: '/(drawer)/supplier-invoice-detail', params: { id: invoice.id } })}
             >
               <View style={[styles.invoiceHeader, isRtl && styles.rowReverse]}>
                 <View style={[styles.invoiceInfo, isRtl && { alignItems: 'flex-end' }]}>

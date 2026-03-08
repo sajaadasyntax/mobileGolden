@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
@@ -27,6 +28,7 @@ interface ScheduledPayment {
 }
 
 export default function PaymentScheduleScreen() {
+  const router = useRouter();
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
   const { user } = useAuthStore();
@@ -36,8 +38,12 @@ export default function PaymentScheduleScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    if (user && !['ADMIN', 'MANAGER', 'ACCOUNTANT'].includes(user.role)) {
+      router.replace('/(drawer)/dashboard');
+      return;
+    }
     loadPayments();
-  }, []);
+  }, [user]);
 
   const loadPayments = async () => {
     try {

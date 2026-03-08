@@ -12,6 +12,7 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
@@ -31,10 +32,17 @@ interface BankNotice {
 }
 
 export default function MatchOperationScreen() {
+  const router = useRouter();
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
   const { user } = useAuthStore();
   const isRtl = locale === 'ar';
+
+  useEffect(() => {
+    if (user && !['ADMIN', 'MANAGER', 'PROCUREMENT', 'ACCOUNTANT'].includes(user.role)) {
+      router.replace('/(drawer)/dashboard');
+    }
+  }, [user]);
   
   const [notices, setNotices] = useState<BankNotice[]>([]);
   const [loading, setLoading] = useState(true);

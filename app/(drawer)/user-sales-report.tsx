@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useRouter } from 'expo-router';
 import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
@@ -53,10 +54,17 @@ function getMonthEnd(date: Date): Date {
 }
 
 export default function UserSalesReportScreen() {
+  const router = useRouter();
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
   const { user } = useAuthStore();
   const isRtl = locale === 'ar';
+
+  useEffect(() => {
+    if (user && !['ADMIN', 'MANAGER'].includes(user.role)) {
+      router.replace('/(drawer)/dashboard');
+    }
+  }, [user]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

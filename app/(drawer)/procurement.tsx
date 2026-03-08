@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/auth';
@@ -69,14 +71,17 @@ export default function ProcurementScreen() {
     } catch (error) {
       console.error('Failed to load orders:', error);
       setOrders([]);
+      Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', locale === 'ar' ? 'فشل تحميل الطلبات' : 'Failed to load orders');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadOrders();
-  }, [user]);
+  useFocusEffect(
+    useCallback(() => {
+      loadOrders();
+    }, [user])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -144,7 +149,7 @@ export default function ProcurementScreen() {
     return (
       <TouchableOpacity 
         style={[styles.orderCard, { backgroundColor: theme.card }, isRtl && styles.orderCardRtl]}
-        onPress={() => router.push({ pathname: '/po-detail', params: { id: item.id } })}
+        onPress={() => router.push({ pathname: '/(drawer)/po-detail', params: { id: item.id } })}
       >
         <View style={[styles.orderIcon, { backgroundColor: theme.warningBackground }]}>
           <Ionicons name="document-text" size={24} color={theme.warning} />
@@ -185,7 +190,7 @@ export default function ProcurementScreen() {
       {canCreateProcurement && (
         <TouchableOpacity 
           style={[styles.newPurchaseButton, isRtl && styles.newPurchaseButtonRtl]}
-          onPress={() => router.push('/create-procurement-invoice')}
+          onPress={() => router.push('/(drawer)/create-procurement-invoice')}
         >
           <Ionicons name="add" size={24} color="#fff" />
           <Text style={styles.newPurchaseText}>

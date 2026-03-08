@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useRouter } from 'expo-router';
 import {
   View,
   Text,
@@ -46,10 +47,17 @@ const roleLabels: Record<string, { en: string; ar: string; color: string }> = {
 };
 
 export default function UsersScreen() {
+  const router = useRouter();
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
   const { user: currentUser } = useAuthStore();
   const isRtl = locale === 'ar';
+
+  useEffect(() => {
+    if (currentUser && !['ADMIN', 'MANAGER'].includes(currentUser.role)) {
+      router.replace('/(drawer)/dashboard');
+    }
+  }, [currentUser]);
   
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);

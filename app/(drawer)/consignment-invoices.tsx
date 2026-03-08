@@ -39,6 +39,10 @@ export default function ConsignmentInvoicesScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    if (user && !['ADMIN', 'MANAGER', 'PROCUREMENT', 'ACCOUNTANT'].includes(user.role)) {
+      router.replace('/(drawer)/dashboard');
+      return;
+    }
     loadInvoices();
   }, []);
 
@@ -158,7 +162,7 @@ export default function ConsignmentInvoicesScreen() {
             <TouchableOpacity
               key={invoice.id}
               style={[styles.invoiceCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-              onPress={() => router.push({ pathname: '/supplier-invoice-detail', params: { id: invoice.id } })}
+              onPress={() => router.push({ pathname: '/(drawer)/supplier-invoice-detail', params: { id: invoice.id } })}
             >
               <View style={[styles.invoiceHeader, isRtl && styles.rowReverse]}>
                 <View style={[styles.invoiceInfo, isRtl && { alignItems: 'flex-end' }]}>

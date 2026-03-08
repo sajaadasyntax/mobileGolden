@@ -11,6 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
@@ -63,10 +64,17 @@ interface CustomerData {
 type ChartType = 'products' | 'sellers' | 'customers';
 
 export default function ReportsScreen() {
+  const router = useRouter();
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
   const { user } = useAuthStore();
   const isRtl = locale === 'ar';
+
+  useEffect(() => {
+    if (user && !['ADMIN', 'MANAGER'].includes(user.role)) {
+      router.replace('/(drawer)/dashboard');
+    }
+  }, [user]);
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -85,42 +93,34 @@ export default function ReportsScreen() {
     try {
       if (!user?.branchId) return;
       
-      // Load dashboard/reports data from backend
+      // Parse month range for date filtering
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const dateFrom = new Date(year, month - 1, 1).toISOString();
+      const dateTo = new Date(year, month, 0, 23, 59, 59).toISOString();
+
+      // Use userSalesProfit which provides actual per-user data
+      const salesData = await api.accounting.reports.userSalesProfit({ dateFrom, dateTo });
+      
+      if (salesData?.users) {
+        // Sellers from userSalesProfit
+        setSellers(salesData.users.map((u: any, idx: number) => ({
+          id: u.user?.id || String(idx),
+          name: u.user?.name || 'Unknown',
+          nameAr: u.user?.nameAr || u.user?.name || 'غير معروف',
+          salesCount: Number(u.invoiceCount) || 0,
+          totalSales: Number(u.totalSalesSdg) || 0,
+        })));
+      }
+
+      // Also fetch dashboard for summary data
       const dashboardData = await api.accounting.reports.dashboard(user.branchId);
-      
-      // Transform backend data or use fallback
-      if (dashboardData?.topProducts) {
-        setProducts(dashboardData.topProducts.map((p: any, idx: number) => ({
-          id: p.id || String(idx),
-          name: p.name || p.nameEn || 'Unknown',
-          nameAr: p.nameAr || p.name || 'غير معروف',
-          unitsSold: Number(p.unitsSold) || 0,
-          revenue: Number(p.revenue) || 0,
-        })));
-      }
-      
-      if (dashboardData?.topSellers) {
-        setSellers(dashboardData.topSellers.map((s: any, idx: number) => ({
-          id: s.id || String(idx),
-          name: s.name || 'Unknown',
-          nameAr: s.nameAr || s.name || 'غير معروف',
-          salesCount: Number(s.salesCount) || 0,
-          totalSales: Number(s.totalSales) || 0,
-        })));
-      }
-      
-      if (dashboardData?.topCustomers) {
-        setCustomers(dashboardData.topCustomers.map((c: any, idx: number) => ({
-          id: c.id || String(idx),
-          name: c.name || 'Unknown',
-          nameAr: c.nameAr || c.name || 'غير معروف',
-          purchaseCount: Number(c.purchaseCount) || 0,
-          totalPurchases: Number(c.totalPurchases) || 0,
-        })));
+      if (dashboardData) {
+        // Dashboard data doesn't include topProducts/topCustomers, so set empty
+        setProducts([]);
+        setCustomers([]);
       }
     } catch (error) {
       console.error('Failed to load reports data:', error);
-      // Set empty arrays on error
       setProducts([]);
       setSellers([]);
       setCustomers([]);

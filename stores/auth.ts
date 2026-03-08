@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { api, getToken, removeToken } from '@/lib/api';
+import { queryClient } from '@/lib/queryClient';
 
 interface User {
   id: string;
   email: string;
   name: string;
   role: string;
-  branchId: string;
+  branchId: string | null;
   branch?: {
     id: string;
     name: string;
@@ -50,6 +51,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       // Ignore errors
     } finally {
+      queryClient.clear();
       await removeToken();
       set({ user: null, isAuthenticated: false, isLoading: false });
     }

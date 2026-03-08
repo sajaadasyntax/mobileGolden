@@ -102,7 +102,7 @@ export default function WarehouseSalesOrdersScreen() {
     return (
       <TouchableOpacity
         style={[styles.orderCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-        onPress={() => router.push({ pathname: '/sales-order-detail', params: { id: item.id } })}
+        onPress={() => router.push({ pathname: '/(drawer)/sales-order-detail', params: { id: item.id } })}
       >
         <View style={[styles.orderHeader, isRtl && styles.rowReverse]}>
           <View style={{ flex: 1 }}>
@@ -142,7 +142,7 @@ export default function WarehouseSalesOrdersScreen() {
         {canDeliver && (
           <TouchableOpacity
             style={[styles.deliverButton, { backgroundColor: theme.primary }]}
-            onPress={() => router.push({ pathname: '/sales-order-detail', params: { id: item.id } })}
+            onPress={() => router.push({ pathname: '/(drawer)/sales-order-detail', params: { id: item.id } })}
           >
             <Ionicons name="send-outline" size={18} color="#fff" />
             <Text style={styles.deliverButtonText}>

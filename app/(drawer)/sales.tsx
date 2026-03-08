@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -52,14 +53,17 @@ export default function SalesScreen() {
       }
     } catch (error) {
       console.error('Failed to load invoices:', error);
+      Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', locale === 'ar' ? 'فشل تحميل الفواتير' : 'Failed to load invoices');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadInvoices();
-  }, [user]);
+  useFocusEffect(
+    useCallback(() => {
+      loadInvoices();
+    }, [user])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -214,7 +218,7 @@ export default function SalesScreen() {
       {/* New Sale Button */}
       <TouchableOpacity 
         style={[styles.newSaleButton, isRtl && styles.newSaleButtonRtl]}
-        onPress={() => router.push('/create-sales-invoice')}
+        onPress={() => router.push('/(drawer)/create-sales-invoice')}
       >
         <Ionicons name="add" size={24} color="#fff" />
         <Text style={styles.newSaleText}>{t('newSale', locale)}</Text>

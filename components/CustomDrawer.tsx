@@ -64,6 +64,9 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
             { icon: 'document-text-outline', label: t('procurementOrders', locale), route: '/(drawer)/procurement' },
             { icon: 'people-outline', label: t('customers', locale), route: '/(drawer)/customers' },
             { icon: 'business-outline', label: t('suppliers', locale), route: '/(drawer)/suppliers' },
+            { icon: 'pricetag-outline', label: locale === 'ar' ? 'سياسات الأسعار' : 'Price Policies', route: '/(drawer)/prices' },
+            { icon: 'cash-outline', label: locale === 'ar' ? 'سعر الصرف' : 'Exchange Rate', route: '/(drawer)/exchange-rate' },
+            { icon: 'layers-outline', label: locale === 'ar' ? 'طلبات الرفوف' : 'Shelf Requests', route: '/(drawer)/shelf-requests' },
           ],
         },
         {
@@ -74,6 +77,9 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
             { icon: 'card-outline', label: t('expenses', locale), route: '/(drawer)/expenses' },
             { icon: 'receipt-outline', label: t('outstandingInvoices', locale), route: '/(drawer)/outstanding-invoices' },
             { icon: 'calculator-outline', label: t('budget', locale), route: '/(drawer)/budget' },
+            { icon: 'filing-outline', label: locale === 'ar' ? 'فواتير الموردين' : 'Supplier Invoices', route: '/(drawer)/all-invoices' },
+            { icon: 'calendar-outline', label: locale === 'ar' ? 'جدول الدفع' : 'Payment Schedule', route: '/(drawer)/payment-schedule' },
+            { icon: 'archive-outline', label: locale === 'ar' ? 'الميزانية السابقة' : 'Previous Budget', route: '/(drawer)/previous-budget' },
           ],
         },
         {
@@ -81,6 +87,7 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
           items: [
             { icon: 'people-outline', label: locale === 'ar' ? 'المستخدمون' : 'Users', route: '/(drawer)/users' },
             { icon: 'bar-chart-outline', label: t('monthlyReports', locale), route: '/(drawer)/reports' },
+            { icon: 'stats-chart-outline', label: locale === 'ar' ? 'مبيعات المستخدمين' : 'User Sales Report', route: '/(drawer)/user-sales-report' },
             { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
           ],
         },
@@ -96,6 +103,8 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
             { icon: 'grid-outline', label: t('dashboard', locale), route: '/(drawer)/dashboard' },
             { icon: 'document-text-outline', label: t('procurementOrders', locale), route: '/(drawer)/procurement' },
             { icon: 'cube-outline', label: t('inventory', locale), route: '/(drawer)/inventory' },
+            { icon: 'notifications-outline', label: locale === 'ar' ? 'رفع إشعار' : 'Raise Notification', route: '/(drawer)/raise-notification' },
+            { icon: 'link-outline', label: locale === 'ar' ? 'مطابقة العملية' : 'Match Operation', route: '/(drawer)/match-operation' },
           ],
         },
         {
@@ -119,6 +128,7 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
             { icon: 'card-outline', label: t('expenses', locale), route: '/(drawer)/expenses' },
             { icon: 'receipt-outline', label: t('outstandingInvoices', locale), route: '/(drawer)/outstanding-invoices' },
             { icon: 'calculator-outline', label: t('budget', locale), route: '/(drawer)/budget' },
+            { icon: 'archive-outline', label: locale === 'ar' ? 'الميزانية السابقة' : 'Previous Budget', route: '/(drawer)/previous-budget' },
           ],
         },
         {

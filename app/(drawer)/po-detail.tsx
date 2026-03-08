@@ -133,7 +133,7 @@ export default function PODetailScreen() {
       setLoading(true);
       const [orderData, warehousesData, cycle] = await Promise.all([
         api.procurement.getOrderById(id!),
-        user?.branchId ? api.inventory.warehouses(user.branchId) : Promise.resolve({ data: [] }),
+        api.inventory.warehouses(),
         user?.branchId ? api.dayCycle.getCurrent(user.branchId).catch(() => null) : Promise.resolve(null),
       ]);
       setIsDayOpen(cycle?.status === 'OPEN');

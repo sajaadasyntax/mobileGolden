@@ -119,7 +119,7 @@ export default function CreateSalesInvoiceScreen() {
   const loadShelves = async () => {
     try {
       if (user?.branchId) {
-        const result = await api.inventory.shelves(user.branchId);
+        const result = await api.inventory.shelves();
         const shelvesData = result || [];
         setShelves(shelvesData);
         // Auto-select first shelf if available
