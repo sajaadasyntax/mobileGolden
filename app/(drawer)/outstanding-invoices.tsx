@@ -101,11 +101,6 @@ export default function OutstandingInvoicesScreen() {
         const paidAmount = Number(inv.paidAmountSdg) || 0;
         const remaining = totalAmount - paidAmount;
         
-        // Debug logging for zero amounts
-        if (totalAmount === 0) {
-          console.log('Receivable with 0 total:', inv);
-        }
-        
         return {
           id: inv.id || String(Math.random()),
           invoiceNumber: inv.invoiceNumber || `INV-${(inv.id || '').substring(0, 8).toUpperCase()}`,
@@ -125,11 +120,6 @@ export default function OutstandingInvoicesScreen() {
         const paidAmount = Number(inv.paidAmountSdg) || 0;
         const remaining = totalAmount - paidAmount;
         
-        // Debug logging for zero amounts
-        if (totalAmount === 0) {
-          console.log('Payable with 0 total:', inv);
-        }
-        
         return {
           id: inv.id || String(Math.random()),
           invoiceNumber: inv.invoiceNumber || `INV-${(inv.id || '').substring(0, 8).toUpperCase()}`,
@@ -145,13 +135,6 @@ export default function OutstandingInvoicesScreen() {
       });
       
       const allInvoices = [...receivables, ...payables];
-      console.log(`Loaded ${allInvoices.length} outstanding invoices (${receivables.length} receivables, ${payables.length} payables)`);
-      
-      // Log summary
-      const totalReceivable = receivables.reduce((sum, inv) => sum + inv.remainingAmountSdg, 0);
-      const totalPayable = payables.reduce((sum, inv) => sum + inv.remainingAmountSdg, 0);
-      console.log(`Total Outstanding - Receivables: ${totalReceivable.toFixed(2)} SDG, Payables: ${totalPayable.toFixed(2)} SDG`);
-      
       setInvoices(allInvoices);
     } catch (error) {
       console.error('Failed to load outstanding invoices:', error);

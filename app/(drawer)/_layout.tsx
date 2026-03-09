@@ -8,6 +8,7 @@ import { DrawerActions } from '@react-navigation/native';
 import { TouchableOpacity, StyleSheet, I18nManager, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function DrawerToggleButton({ position }: { position: 'left' | 'right' }) {
   const navigation = useNavigation();
@@ -31,6 +32,7 @@ function DrawerLayout() {
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
   const isRtl = locale === 'ar';
+  const insets = useSafeAreaInsets();
 
   return (
     <Drawer
@@ -60,6 +62,7 @@ function DrawerLayout() {
         drawerInactiveTintColor: theme.drawerInactiveText,
         contentStyle: {
           backgroundColor: theme.background,
+          paddingBottom: insets.bottom,
         },
       })}
     >

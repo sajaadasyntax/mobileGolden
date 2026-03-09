@@ -766,6 +766,8 @@ export const api = {
         categoryId: string;
         amountSdg: number;
         description: string;
+        paymentMethod?: 'CASH' | 'BANK_TRANSFER';
+        receiptImageUrl?: string;
       }) => trpcMutation<any>('accounting.expenses.create', data),
       
       approve: (id: string) => 

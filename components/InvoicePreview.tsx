@@ -312,11 +312,11 @@ export default function InvoicePreview({ visible, onClose, invoice, onSave }: Pr
                   </Text>
                 </View>
                 <View style={[styles.itemTotal, isRtl && { alignItems: 'flex-start' }]}>
-                  <Text style={[styles.itemTotalValue, { color: theme.success }]}>
-                    {formatCurrency(item.total, 'USD')}
-                  </Text>
-                  <Text style={[styles.itemTotalSdg, { color: theme.textMuted }]}>
+                  <Text style={[styles.itemTotalSdg, { color: theme.success }]}>
                     {formatCurrency(item.totalSdg, 'SDG')}
+                  </Text>
+                  <Text style={[styles.itemTotalValue, { color: theme.textMuted }]}>
+                    {formatCurrency(item.total, 'USD')}
                   </Text>
                 </View>
               </View>
@@ -362,10 +362,10 @@ export default function InvoicePreview({ visible, onClose, invoice, onSave }: Pr
               </Text>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={[styles.grandTotalValue, { color: theme.primary }]}>
-                  {formatCurrency(invoice.total, 'USD')}
+                  {formatCurrency(invoice.totalSdg, 'SDG')}
                 </Text>
                 <Text style={[styles.grandTotalSdg, { color: theme.textSecondary }]}>
-                  {formatCurrency(invoice.totalSdg, 'SDG')}
+                  {formatCurrency(invoice.total, 'USD')}
                 </Text>
               </View>
             </View>
@@ -575,12 +575,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   itemTotalValue: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 11,
+    marginTop: 2,
   },
   itemTotalSdg: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 15,
+    fontWeight: '600',
   },
   textRtl: {
     textAlign: 'right',
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   grandTotalSdg: {
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 2,
   },
   notesText: {

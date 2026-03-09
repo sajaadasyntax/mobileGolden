@@ -63,6 +63,7 @@ export default function DailyInvoiceScreen() {
   const { theme } = useThemeStore();
   const { user } = useAuthStore();
   const isRtl = locale === 'ar';
+  const showUsd = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   
   const [invoiceItems, setInvoiceItems] = useState<SaleItem[]>([]);
   const [showItemPicker, setShowItemPicker] = useState(false);
@@ -598,12 +599,14 @@ export default function DailyInvoiceScreen() {
                     </TouchableOpacity>
                   </View>
                   <View style={[styles.itemTotals, isRtl && { alignItems: 'flex-start' }]}>
-                    <Text style={[styles.itemTotal, { color: theme.primary }]}>
-                      ${item.total.toFixed(2)}
+                    <Text style={[styles.itemTotalSdg, { color: theme.primary }]}>
+                      {item.totalSdg.toLocaleString()} {locale === 'ar' ? 'ج.س' : 'SDG'}
                     </Text>
-                    <Text style={[styles.itemTotalSdg, { color: theme.textMuted }]}>
-                      {item.totalSdg.toLocaleString()} SDG
-                    </Text>
+                    {showUsd && (
+                      <Text style={[styles.itemTotal, { color: theme.textMuted }]}>
+                        ${item.total.toFixed(2)}
+                      </Text>
+                    )}
                   </View>
                   <TouchableOpacity 
                     onPress={() => handleRemoveItem(item.id)}
@@ -699,12 +702,14 @@ export default function DailyInvoiceScreen() {
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={[styles.pickableItemPrice, { color: theme.primary }]}>
-                      ${item.retailPrice.toFixed(2)}
+                    <Text style={[styles.pickableItemPriceSdg, { color: theme.primary }]}>
+                      {(item.retailPrice * exchangeRate).toLocaleString()} {locale === 'ar' ? 'ج.س' : 'SDG'}
                     </Text>
-                    <Text style={[styles.pickableItemPriceSdg, { color: theme.textMuted }]}>
-                      {(item.retailPrice * exchangeRate).toLocaleString()} SDG
-                    </Text>
+                    {showUsd && (
+                      <Text style={[styles.pickableItemPrice, { color: theme.textMuted }]}>
+                        ${item.retailPrice.toFixed(2)}
+                      </Text>
+                    )}
                   </View>
                 </TouchableOpacity>
               )}
@@ -1067,11 +1072,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   itemTotal: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 11,
+    marginTop: 2,
   },
   itemTotalSdg: {
-    fontSize: 11,
+    fontSize: 14,
+    fontWeight: '600',
   },
   removeButton: {
     padding: 4,
@@ -1175,12 +1181,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   pickableItemPrice: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  pickableItemPriceSdg: {
     fontSize: 11,
     marginTop: 2,
+  },
+  pickableItemPriceSdg: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   quantitySection: {
     padding: 16,

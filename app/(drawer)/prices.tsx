@@ -192,21 +192,21 @@ export default function PricesScreen() {
           <View style={[styles.priceRow, isRtl && styles.priceRowRtl]}>
             <View style={[styles.priceItem, { backgroundColor: theme.backgroundTertiary }]}>
               <Text style={[styles.priceLabel, { color: theme.textSecondary }]}>{t('wholesale', locale)}</Text>
-              <Text style={[styles.priceValue, { color: theme.success }]}>{formatCurrency(item.wholesalePriceUsd)}</Text>
               {item.wholesalePriceUsd && item.wholesalePriceUsd > 0 && (
-                <Text style={[styles.priceValueSdg, { color: theme.textSecondary }]}>
+                <Text style={[styles.priceValueSdg, { color: theme.success }]}>
                   {formatSdg(item.wholesalePriceUsd * exchangeRate)} {locale === 'ar' ? 'ج.س' : 'SDG'}
                 </Text>
               )}
+              <Text style={[styles.priceValue, { color: theme.textSecondary }]}>{formatCurrency(item.wholesalePriceUsd)}</Text>
             </View>
             <View style={[styles.priceItem, { backgroundColor: theme.backgroundTertiary }]}>
               <Text style={[styles.priceLabel, { color: theme.textSecondary }]}>{t('retail', locale)}</Text>
-              <Text style={[styles.priceValue, { color: theme.success }]}>{formatCurrency(item.retailPriceUsd)}</Text>
               {item.retailPriceUsd && item.retailPriceUsd > 0 && (
-                <Text style={[styles.priceValueSdg, { color: theme.textSecondary }]}>
+                <Text style={[styles.priceValueSdg, { color: theme.success }]}>
                   {formatSdg(item.retailPriceUsd * exchangeRate)} {locale === 'ar' ? 'ج.س' : 'SDG'}
                 </Text>
               )}
+              <Text style={[styles.priceValue, { color: theme.textSecondary }]}>{formatCurrency(item.retailPriceUsd)}</Text>
             </View>
           </View>
         </View>
@@ -468,12 +468,12 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   priceValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  priceValueSdg: {
     fontSize: 11,
     marginTop: 2,
+  },
+  priceValueSdg: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   editIcon: {
     width: 40,

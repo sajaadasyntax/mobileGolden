@@ -45,13 +45,15 @@ interface Props {
   shelfId?: string;
   warehouseId?: string;
   skipStockValidation?: boolean; // For procurement - we're buying, not selling
+  exchangeRate?: number;
 }
 
-export default function InvoiceItemPicker({ visible, onClose, onSelect, priceType = 'wholesale', shelfId, warehouseId, skipStockValidation = false }: Props) {
+export default function InvoiceItemPicker({ visible, onClose, onSelect, priceType = 'wholesale', shelfId, warehouseId, skipStockValidation = false, exchangeRate = 1 }: Props) {
   const { theme } = useThemeStore();
   const { locale } = useLocaleStore();
   const { user } = useAuthStore();
   const isRtl = locale === 'ar';
+  const showUsd = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -323,9 +325,14 @@ export default function InvoiceItemPicker({ visible, onClose, onSelect, priceTyp
           )}
         </View>
         <View style={[styles.itemPrice, isRtl && styles.itemPriceRtl]}>
-          <Text style={[styles.priceValue, { color: theme.success }]}>
-            ${price.toFixed(2)}
+          <Text style={[styles.priceValueSdg, { color: theme.success }]}>
+            {(price * exchangeRate).toLocaleString(locale === 'ar' ? 'ar-SA' : 'en-US', { maximumFractionDigits: 0 })} {locale === 'ar' ? 'ج.س' : 'SDG'}
           </Text>
+          {showUsd && (
+            <Text style={[styles.priceValue, { color: theme.textMuted }]}>
+              ${price.toFixed(2)}
+            </Text>
+          )}
           {/* Only show stock count for sales, not for procurement */}
           {!skipStockValidation && (
             <Text style={[styles.stockText, { color: theme.textMuted }]}>
@@ -595,9 +602,13 @@ const styles = StyleSheet.create({
     marginRight: 0,
     marginLeft: 12,
   },
-  priceValue: {
+  priceValueSdg: {
     fontSize: 16,
     fontWeight: '700',
+  },
+  priceValue: {
+    fontSize: 11,
+    marginTop: 2,
   },
   stockText: {
     fontSize: 11,

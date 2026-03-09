@@ -47,6 +47,7 @@ export default function CreateSalesInvoiceScreen() {
   const { locale } = useLocaleStore();
   const { user } = useAuthStore();
   const isRtl = locale === 'ar';
+  const showUsd = user?.role === 'ADMIN' || user?.role === 'MANAGER';
 
   // Form state
   const [invoiceCategory, setInvoiceCategory] = useState<'WHOLESALE' | 'RETAIL'>('WHOLESALE');
@@ -118,6 +119,13 @@ export default function CreateSalesInvoiceScreen() {
 
   const loadShelves = async () => {
     try {
+      // For SHELF_SALES users, auto-assign their own shelf directly from user profile
+      if (user?.role === 'SHELF_SALES' && user?.shelf?.id) {
+        const userShelf = { id: user.shelf.id, name: user.shelf.name, nameAr: user.shelf.nameAr, code: user.shelf.code };
+        setShelves([userShelf]);
+        setSelectedShelfId(user.shelf.id);
+        return;
+      }
       if (user?.branchId) {
         const result = await api.inventory.shelves();
         const shelvesData = result || [];
@@ -415,14 +423,16 @@ export default function CreateSalesInvoiceScreen() {
           )}
         </View>
 
-        {/* Exchange Rate Display */}
-        <View style={[styles.rateCard, { backgroundColor: theme.infoBackground }]}>
-          <Ionicons name="trending-up" size={20} color={theme.info} />
-          <Text style={[styles.rateText, { color: theme.info }]}>
-            {locale === 'ar' ? 'سعر الصرف: ' : 'Exchange Rate: '}
-            1 USD = {exchangeRate.toLocaleString()} SDG
-          </Text>
-        </View>
+        {/* Exchange Rate Display - admin/manager only */}
+        {showUsd && (
+          <View style={[styles.rateCard, { backgroundColor: theme.infoBackground }]}>
+            <Ionicons name="trending-up" size={20} color={theme.info} />
+            <Text style={[styles.rateText, { color: theme.info }]}>
+              {locale === 'ar' ? 'سعر الصرف: ' : 'Exchange Rate: '}
+              1 USD = {exchangeRate.toLocaleString()} SDG
+            </Text>
+          </View>
+        )}
 
         {/* Items Section */}
         <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
@@ -493,12 +503,14 @@ export default function CreateSalesInvoiceScreen() {
                     </TouchableOpacity>
                   </View>
                   <View style={[styles.itemTotals, isRtl && { alignItems: 'flex-start' }]}>
-                    <Text style={[styles.itemTotal, { color: theme.success }]}>
-                      {formatCurrency(item.total, 'USD')}
-                    </Text>
-                    <Text style={[styles.itemTotalSdg, { color: theme.textMuted }]}>
+                    <Text style={[styles.itemTotalSdg, { color: theme.success }]}>
                       {formatCurrency(item.totalSdg, 'SDG')}
                     </Text>
+                    {showUsd && (
+                      <Text style={[styles.itemTotal, { color: theme.textMuted }]}>
+                        {formatCurrency(item.total, 'USD')}
+                      </Text>
+                    )}
                   </View>
                 </View>
               </View>
@@ -585,8 +597,10 @@ export default function CreateSalesInvoiceScreen() {
             <View style={[styles.grandTotalRow, { borderTopColor: theme.primary }]}>
               <Text style={[styles.grandTotalLabel, { color: theme.primary }]}>{t('grandTotal', locale)}</Text>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={[styles.grandTotalValue, { color: theme.primary }]}>{formatCurrency(totals.total, 'USD')}</Text>
-                <Text style={[styles.grandTotalSdg, { color: theme.textSecondary }]}>{formatCurrency(totals.totalSdg, 'SDG')}</Text>
+                <Text style={[styles.grandTotalValue, { color: theme.primary }]}>{formatCurrency(totals.totalSdg, 'SDG')}</Text>
+                {showUsd && (
+                  <Text style={[styles.grandTotalSdg, { color: theme.textSecondary }]}>{formatCurrency(totals.total, 'USD')}</Text>
+                )}
               </View>
             </View>
           </View>
@@ -617,6 +631,8 @@ export default function CreateSalesInvoiceScreen() {
         onClose={() => setShowItemPicker(false)}
         onSelect={handleAddItem}
         priceType={invoiceCategory === 'WHOLESALE' ? 'wholesale' : 'retail'}
+        shelfId={selectedShelfId ?? undefined}
+        exchangeRate={exchangeRate}
       />
 
       {/* Invoice Preview Modal */}
@@ -906,12 +922,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   itemTotal: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 11,
+    marginTop: 2,
   },
   itemTotalSdg: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 16,
+    fontWeight: '700',
   },
   discountRow: {
     flexDirection: 'row',
@@ -983,7 +999,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   grandTotalSdg: {
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 2,
   },
   bottomBar: {

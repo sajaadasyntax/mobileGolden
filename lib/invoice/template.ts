@@ -106,15 +106,13 @@ const generateItemsTableRows = (items: InvoiceItem[], locale: 'en' | 'ar'): stri
       </td>
       <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 13px;">${item.quantity} ${escapeHtml(item.unit || '')}</td>
       <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: ${locale === 'ar' ? 'left' : 'right'}; font-size: 13px;">
-        <div>${formatCurrency(item.unitPrice, 'USD', locale)}</div>
-        <div style="font-size: 11px; color: #9ca3af;">${formatCurrency(item.unitPriceSdg, 'SDG', locale)}</div>
+        <div>${formatCurrency(item.unitPriceSdg, 'SDG', locale)}</div>
       </td>
       <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 13px; color: ${hasDiscount ? '#dc2626' : '#9ca3af'};">
-        ${hasDiscount ? (item.discountType === 'PERCENTAGE' ? `${item.discount}%` : formatCurrency(item.discount!, 'USD', locale)) : '—'}
+        ${hasDiscount ? (item.discountType === 'PERCENTAGE' ? `${item.discount}%` : formatCurrency(item.discount! * item.unitPriceSdg / (item.unitPrice || 1), 'SDG', locale)) : '—'}
       </td>
       <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: ${locale === 'ar' ? 'left' : 'right'}; font-weight: 600; font-size: 13px;">
-        <div>${formatCurrency(item.total, 'USD', locale)}</div>
-        <div style="font-size: 11px; color: #9ca3af; font-weight: 400;">${formatCurrency(item.totalSdg, 'SDG', locale)}</div>
+        <div>${formatCurrency(item.totalSdg, 'SDG', locale)}</div>
       </td>
     </tr>`;
   }).join('');
@@ -621,10 +619,6 @@ export const generateInvoiceHTML = (
           </span>
         </div>
       </div>
-      <div class="inv-meta-cell">
-        <div class="inv-meta-label">${L.exchangeRate}</div>
-        <div class="inv-meta-value">1 USD = ${invoice.exchangeRate.toLocaleString()} SDG</div>
-      </div>
       ${invoice.poNumber ? `
       <div class="inv-meta-cell">
         <div class="inv-meta-label">${L.poNumber}</div>
@@ -691,48 +685,30 @@ export const generateInvoiceHTML = (
       <div class="inv-totals-table">
         <div class="inv-totals-row">
           <span class="inv-totals-label">${L.subtotal}</span>
-          <span class="inv-totals-value">
-            ${formatCurrency(invoice.subtotal, 'USD', locale)}
-            <div class="inv-totals-sdg">${formatCurrency(invoice.subtotalSdg, 'SDG', locale)}</div>
-          </span>
+          <span class="inv-totals-value">${formatCurrency(invoice.subtotalSdg, 'SDG', locale)}</span>
         </div>
         ${invoice.discount > 0 ? `
         <div class="inv-totals-row">
           <span class="inv-totals-label" style="color:#dc2626;">${L.discountRow}</span>
-          <span class="inv-totals-value" style="color:#dc2626;">
-            -${formatCurrency(invoice.discount, 'USD', locale)}
-            <div class="inv-totals-sdg" style="color:#fca5a5;">-${formatCurrency(invoice.discountSdg, 'SDG', locale)}</div>
-          </span>
+          <span class="inv-totals-value" style="color:#dc2626;">-${formatCurrency(invoice.discountSdg, 'SDG', locale)}</span>
         </div>` : ''}
         ${invoice.tax > 0 ? `
         <div class="inv-totals-row">
           <span class="inv-totals-label">${L.taxLabel}</span>
-          <span class="inv-totals-value">
-            ${formatCurrency(invoice.tax, 'USD', locale)}
-            <div class="inv-totals-sdg">${formatCurrency(invoice.taxSdg, 'SDG', locale)}</div>
-          </span>
+          <span class="inv-totals-value">${formatCurrency(invoice.taxSdg, 'SDG', locale)}</span>
         </div>` : ''}
         ${options.includePaymentDetails && invoice.amountPaid > 0 ? `
         <div class="inv-totals-row">
           <span class="inv-totals-label" style="color:#16a34a;">${L.amountPaid}</span>
-          <span class="inv-totals-value" style="color:#16a34a;">
-            ${formatCurrency(invoice.amountPaid, 'USD', locale)}
-            <div class="inv-totals-sdg" style="color:#86efac;">${formatCurrency(invoice.amountPaidSdg, 'SDG', locale)}</div>
-          </span>
+          <span class="inv-totals-value" style="color:#16a34a;">${formatCurrency(invoice.amountPaidSdg, 'SDG', locale)}</span>
         </div>
         <div class="inv-totals-row">
           <span class="inv-totals-label" style="color:#d97706;">${L.amountDue}</span>
-          <span class="inv-totals-value" style="color:#d97706;">
-            ${formatCurrency(invoice.amountDue, 'USD', locale)}
-            <div class="inv-totals-sdg" style="color:#fcd34d;">${formatCurrency(invoice.amountDueSdg, 'SDG', locale)}</div>
-          </span>
+          <span class="inv-totals-value" style="color:#d97706;">${formatCurrency(invoice.amountDueSdg, 'SDG', locale)}</span>
         </div>` : ''}
         <div class="inv-totals-row grand">
           <span class="inv-totals-label">${L.grandTotal}</span>
-          <span class="inv-totals-value">
-            ${formatCurrency(invoice.total, 'USD', locale)}
-            <div class="inv-totals-sdg">${formatCurrency(invoice.totalSdg, 'SDG', locale)}</div>
-          </span>
+          <span class="inv-totals-value">${formatCurrency(invoice.totalSdg, 'SDG', locale)}</span>
         </div>
       </div>
     </div>

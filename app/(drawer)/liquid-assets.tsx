@@ -414,7 +414,7 @@ export default function LiquidAssetsScreen() {
           <Text style={[styles.balanceValue, { color: '#3b82f6' }]}>
             {formatAmount(inventoryValue)}
           </Text>
-          <Text style={[styles.balanceCurrency, { color: theme.textSecondary }]}>SDG</Text>
+          <Text style={[styles.balanceCurrency, { color: theme.textSecondary }]}>{locale === 'ar' ? 'ج.س' : 'SDG'}</Text>
         </View>
       </View>
 
@@ -437,7 +437,7 @@ export default function LiquidAssetsScreen() {
           <Text style={[styles.balanceValue, { color: '#10b981' }]}>
             {formatAmount(cashBalance)}
           </Text>
-          <Text style={[styles.balanceCurrency, { color: theme.textSecondary }]}>SDG</Text>
+          <Text style={[styles.balanceCurrency, { color: theme.textSecondary }]}>{locale === 'ar' ? 'ج.س' : 'SDG'}</Text>
         </View>
       </View>
       
@@ -488,7 +488,7 @@ export default function LiquidAssetsScreen() {
           <Text style={[styles.balanceValue, { color: '#8b5cf6' }]}>
             {formatAmount(bankBalance)}
           </Text>
-          <Text style={[styles.balanceCurrency, { color: theme.textSecondary }]}>SDG</Text>
+          <Text style={[styles.balanceCurrency, { color: theme.textSecondary }]}>{locale === 'ar' ? 'ج.س' : 'SDG'}</Text>
         </View>
       </View>
       
@@ -549,7 +549,7 @@ export default function LiquidAssetsScreen() {
                   <Text style={[styles.balanceValue, { color: style.color }]}>
                     {formatAmount(account.balance)}
                   </Text>
-                  <Text style={[styles.balanceCurrency, { color: theme.textSecondary }]}>SDG</Text>
+                  <Text style={[styles.balanceCurrency, { color: theme.textSecondary }]}>{locale === 'ar' ? 'ج.س' : 'SDG'}</Text>
                 </View>
               </View>
             );
@@ -787,7 +787,7 @@ export default function LiquidAssetsScreen() {
           <Text style={[styles.balanceValue, { color: '#f59e0b' }]}>
             {formatAmount(accountsReceivable)}
           </Text>
-          <Text style={[styles.balanceCurrency, { color: theme.textSecondary }]}>SDG</Text>
+          <Text style={[styles.balanceCurrency, { color: theme.textSecondary }]}>{locale === 'ar' ? 'ج.س' : 'SDG'}</Text>
         </View>
       </View>
       
@@ -808,7 +808,7 @@ export default function LiquidAssetsScreen() {
           <Text style={[styles.balanceValue, { color: '#ef4444' }]}>
             {formatAmount(accountsPayable)}
           </Text>
-          <Text style={[styles.balanceCurrency, { color: theme.textSecondary }]}>SDG</Text>
+          <Text style={[styles.balanceCurrency, { color: theme.textSecondary }]}>{locale === 'ar' ? 'ج.س' : 'SDG'}</Text>
         </View>
       </View>
     </ScrollView>

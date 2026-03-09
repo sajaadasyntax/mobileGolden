@@ -241,7 +241,7 @@ export default function TransactionsScreen() {
             <Text style={[styles.amountValue, { color: isIncome ? theme.success : theme.error }]}>
               {isIncome ? '+' : '-'}{formatAmount(Number(item.amountSdg))}
             </Text>
-            <Text style={[styles.currencyText, { color: theme.textSecondary }]}>SDG</Text>
+            <Text style={[styles.currencyText, { color: theme.textSecondary }]}>{locale === 'ar' ? 'ج.س' : 'SDG'}</Text>
           </View>
         </View>
         {hasReceipts && (
@@ -314,14 +314,14 @@ export default function TransactionsScreen() {
           <Text style={[styles.summaryLabel, { color: theme.textSecondary }, isRtl && styles.textRtl]}>
             {locale === 'ar' ? 'الإيداعات' : 'Deposits'}
           </Text>
-          <Text style={[styles.summaryValue, { color: theme.text }]}>{formatAmount(summary.totalIn)} SDG</Text>
+          <Text style={[styles.summaryValue, { color: theme.text }]}>{formatAmount(summary.totalIn)} {locale === 'ar' ? 'ج.س' : 'SDG'}</Text>
         </View>
         <View style={[styles.summaryCard, { backgroundColor: theme.error + '15', borderColor: theme.error + '30' }]}>
           <Ionicons name="arrow-up" size={20} color={theme.error} />
           <Text style={[styles.summaryLabel, { color: theme.textSecondary }, isRtl && styles.textRtl]}>
             {locale === 'ar' ? 'المسحوبات' : 'Withdrawals'}
           </Text>
-          <Text style={[styles.summaryValue, { color: theme.text }]}>{formatAmount(summary.totalOut)} SDG</Text>
+          <Text style={[styles.summaryValue, { color: theme.text }]}>{formatAmount(summary.totalOut)} {locale === 'ar' ? 'ج.س' : 'SDG'}</Text>
         </View>
       </View>
 
@@ -372,7 +372,7 @@ export default function TransactionsScreen() {
                   {selectedTransaction.referenceNumber || `TXN-${selectedTransaction.id.substring(0, 8).toUpperCase()}`}
                 </Text>
                 <Text style={[styles.infoAmount, { color: theme.text }]}>
-                  {formatAmount(Number(selectedTransaction.amountSdg))} SDG
+                  {formatAmount(Number(selectedTransaction.amountSdg))} {locale === 'ar' ? 'ج.س' : 'SDG'}
                 </Text>
                 <Text style={[styles.infoDesc, { color: theme.textSecondary }]}>
                   {selectedTransaction.description}

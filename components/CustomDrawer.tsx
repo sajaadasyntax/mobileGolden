@@ -170,7 +170,7 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
           items: [
             { icon: 'grid-outline', label: t('dashboard', locale), route: '/(drawer)/dashboard' },
             { icon: 'flash-outline', label: t('dailyAggregateInvoice', locale), route: '/(drawer)/daily-invoice' },
-            { icon: 'cart-outline', label: t('salesOrders', locale), route: '/(drawer)/sales' },
+            { icon: 'cart-outline', label: t('goodsRequest', locale), route: '/(drawer)/shelf-requests' },
             { icon: 'cube-outline', label: locale === 'ar' ? 'مخزون الرف' : 'Shelf Inventory', route: '/(drawer)/shelf-inventory' },
             { icon: 'people-outline', label: t('customers', locale), route: '/(drawer)/customers' },
           ],

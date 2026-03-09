@@ -149,10 +149,18 @@ export default function BudgetScreen() {
             <Text style={[styles.overviewLabel, { color: theme.textSecondary }, isRtl && styles.textRtl]}>
               {t('remainingAmount', locale)}
             </Text>
-            <Text style={[styles.overviewValue, { color: remaining >= 0 ? theme.success : theme.error }]}>
-              {formatAmount(remaining)}
-            </Text>
-            <Text style={[styles.overviewCurrency, { color: theme.textSecondary }]}>{locale === 'ar' ? 'ج.س' : 'SDG'}</Text>
+            {totalAllocated > 0 ? (
+              <>
+                <Text style={[styles.overviewValue, { color: remaining >= 0 ? theme.success : theme.error }]}>
+                  {formatAmount(remaining)}
+                </Text>
+                <Text style={[styles.overviewCurrency, { color: theme.textSecondary }]}>{locale === 'ar' ? 'ج.س' : 'SDG'}</Text>
+              </>
+            ) : (
+              <Text style={[styles.overviewValue, { color: theme.textMuted, fontSize: 14 }]}>
+                {locale === 'ar' ? 'لم يُحدَّد' : 'Not set'}
+              </Text>
+            )}
           </View>
         </View>
 

@@ -35,6 +35,7 @@ export default function SalesScreen() {
   const { user } = useAuthStore();
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
+  const showUsd = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -195,11 +196,13 @@ export default function SalesScreen() {
             { color: isVoided ? theme.textMuted : theme.success },
             isVoided && styles.strikethrough,
           ]}>
-            {formatCurrency(Number(item.totalUsd), 'USD')}
-          </Text>
-          <Text style={[styles.amountSdg, { color: theme.textSecondary }]}>
             {formatCurrency(Number(item.totalSdg), 'SDG')}
           </Text>
+          {showUsd && (
+            <Text style={[styles.amountSdg, { color: theme.textSecondary }]}>
+              {formatCurrency(Number(item.totalUsd), 'USD')}
+            </Text>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -284,9 +287,16 @@ export default function SalesScreen() {
                 <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
                   {locale === 'ar' ? 'المبلغ' : 'Amount'}:
                 </Text>
-                <Text style={[styles.detailValue, { color: theme.success }]}>
-                  ${Number(selectedInvoice?.totalUsd || 0).toFixed(2)}
-                </Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={[styles.detailValue, { color: theme.success }]}>
+                    {formatCurrency(Number(selectedInvoice?.totalSdg || 0), 'SDG')}
+                  </Text>
+                  {showUsd && (
+                    <Text style={{ fontSize: 11, color: theme.textSecondary }}>
+                      ${Number(selectedInvoice?.totalUsd || 0).toFixed(2)}
+                    </Text>
+                  )}
+                </View>
               </View>
               <View style={[styles.detailRow, isRtl && styles.detailRowRtl]}>
                 <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
