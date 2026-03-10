@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -41,6 +42,9 @@ export default function SalesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<SalesInvoice | null>(null);
   const [showActionModal, setShowActionModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [receiptImages, setReceiptImages] = useState<string[]>([]);
+  const [loadingReceipt, setLoadingReceipt] = useState(false);
   const isRtl = locale === 'ar';
   
   // Check if user can void invoices
@@ -138,6 +142,41 @@ export default function SalesScreen() {
         },
       ]
     );
+  };
+
+  const handleViewReceipt = async () => {
+    if (!selectedInvoice || !user?.branchId) return;
+    setLoadingReceipt(true);
+    try {
+      // Look up BANK_IN/BANK_OUT transactions that might be linked to this invoice
+      const result = await api.accounting.transactions.list(user.branchId, {
+        transactionType: 'BANK_IN',
+        pageSize: 50,
+      });
+      const transactions: any[] = result?.data || result || [];
+      // Find a transaction whose referenceNumber matches the invoice number
+      const linked = transactions.find(
+        (tx: any) =>
+          tx.referenceNumber === selectedInvoice.invoiceNumber ||
+          (tx.description && tx.description.includes(selectedInvoice.invoiceNumber))
+      );
+      if (linked && linked.receiptImages && linked.receiptImages.length > 0) {
+        setReceiptImages(linked.receiptImages);
+        setShowActionModal(false);
+        setShowReceiptModal(true);
+      } else {
+        Alert.alert(
+          locale === 'ar' ? 'لا يوجد إيصال' : 'No Receipt',
+          locale === 'ar'
+            ? 'لا توجد صورة إيصال مرتبطة بهذه الفاتورة'
+            : 'No receipt image found for this invoice'
+        );
+      }
+    } catch (error) {
+      console.error('Failed to load receipt:', error);
+    } finally {
+      setLoadingReceipt(false);
+    }
   };
 
   const renderInvoice = ({ item }: { item: SalesInvoice }) => {
@@ -317,7 +356,6 @@ export default function SalesScreen() {
                 style={[styles.actionButton, { backgroundColor: theme.primaryBackground }]}
                 onPress={() => {
                   setShowActionModal(false);
-                  // TODO: Navigate to invoice detail/print screen
                 }}
               >
                 <Ionicons name="eye-outline" size={20} color={theme.primary} />
@@ -325,6 +363,24 @@ export default function SalesScreen() {
                   {locale === 'ar' ? 'عرض الفاتورة' : 'View Invoice'}
                 </Text>
               </TouchableOpacity>
+
+              {/* View Receipt - admin/manager only */}
+              {showUsd && (
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: theme.infoBackground || theme.primaryBackground }]}
+                  onPress={handleViewReceipt}
+                  disabled={loadingReceipt}
+                >
+                  {loadingReceipt ? (
+                    <ActivityIndicator size="small" color={theme.info || theme.primary} />
+                  ) : (
+                    <Ionicons name="image-outline" size={20} color={theme.info || theme.primary} />
+                  )}
+                  <Text style={[styles.actionButtonText, { color: theme.info || theme.primary }]}>
+                    {locale === 'ar' ? 'عرض الإيصال' : 'View Receipt'}
+                  </Text>
+                </TouchableOpacity>
+              )}
               
               {/* Void Invoice - Only for admin/manager and non-cancelled invoices */}
               {canVoidInvoice && selectedInvoice?.status !== 'CANCELLED' && selectedInvoice?.status !== 'VOIDED' && (
@@ -341,6 +397,30 @@ export default function SalesScreen() {
             </View>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Receipt Images Modal */}
+      <Modal
+        visible={showReceiptModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowReceiptModal(false)}
+      >
+        <View style={styles.receiptModalOverlay}>
+          <TouchableOpacity
+            style={styles.receiptModalClose}
+            onPress={() => setShowReceiptModal(false)}
+          >
+            <Ionicons name="close-circle" size={40} color="#fff" />
+          </TouchableOpacity>
+          {receiptImages.length > 0 && (
+            <Image
+              source={{ uri: receiptImages[0] }}
+              style={styles.receiptFullImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
       </Modal>
     </View>
   );
@@ -540,5 +620,21 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  receiptModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  receiptModalClose: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+  },
+  receiptFullImage: {
+    width: '95%',
+    height: '80%',
   },
 });

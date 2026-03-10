@@ -136,6 +136,10 @@ function DrawerLayout() {
         options={({ route }) => ({ title: locale === 'ar' ? 'المستخدمون' : 'Users' })}
       />
       <Drawer.Screen
+        name="bank-payments"
+        options={({ route }) => ({ title: locale === 'ar' ? 'دفعات البنك' : 'Bank Payments' })}
+      />
+      <Drawer.Screen
         name="settings"
         options={({ route }) => ({ title: t('settings', locale) })}
       />

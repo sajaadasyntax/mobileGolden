@@ -77,9 +77,10 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
             { icon: 'card-outline', label: t('expenses', locale), route: '/(drawer)/expenses' },
             { icon: 'receipt-outline', label: t('outstandingInvoices', locale), route: '/(drawer)/outstanding-invoices' },
             { icon: 'calculator-outline', label: t('budget', locale), route: '/(drawer)/budget' },
-            { icon: 'filing-outline', label: locale === 'ar' ? 'فواتير الموردين' : 'Supplier Invoices', route: '/(drawer)/all-invoices' },
+            { icon: 'document-text-outline', label: locale === 'ar' ? 'فواتير الموردين' : 'Supplier Invoices', route: '/(drawer)/all-invoices' },
             { icon: 'calendar-outline', label: locale === 'ar' ? 'جدول الدفع' : 'Payment Schedule', route: '/(drawer)/payment-schedule' },
             { icon: 'archive-outline', label: locale === 'ar' ? 'الميزانية السابقة' : 'Previous Budget', route: '/(drawer)/previous-budget' },
+            { icon: 'card-outline', label: locale === 'ar' ? 'دفعات البنك' : 'Bank Payments', route: '/(drawer)/bank-payments' },
           ],
         },
         {

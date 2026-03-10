@@ -1040,6 +1040,8 @@ export const api = {
       nameAr?: string;
       role?: 'MANAGER' | 'WAREHOUSE_SALES' | 'SHELF_SALES' | 'PROCUREMENT' | 'ACCOUNTANT';
       branchId?: string;
+      warehouseId?: string | null;
+      shelfId?: string | null;
       isActive?: boolean;
     }) => trpcMutation<any>('user.update', data),
     

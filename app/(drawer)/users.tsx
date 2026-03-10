@@ -66,21 +66,62 @@ export default function UsersScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [editBranchId, setEditBranchId] = useState('');
+  const [editShelfId, setEditShelfId] = useState<string | null>(null);
+  const [editWarehouseId, setEditWarehouseId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  
+
   const [newUser, setNewUser] = useState({
     email: '',
     password: '',
     name: '',
     nameAr: '',
     role: 'SHELF_SALES' as 'MANAGER' | 'WAREHOUSE_SALES' | 'SHELF_SALES' | 'PROCUREMENT' | 'ACCOUNTANT',
+    branchId: '' as string,
   });
+
+  const [branches, setBranches] = useState<{ id: string; name: string; nameAr: string }[]>([]);
+  const [shelves, setShelves] = useState<{ id: string; name: string; nameAr: string; code: string; userId?: string | null }[]>([]);
+  const [warehouses, setWarehouses] = useState<{ id: string; name: string; nameAr: string; code: string }[]>([]);
 
   useEffect(() => {
     if (currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') {
       loadUsers();
+      loadBranches();
+      loadShelves();
+      loadWarehouses();
     }
   }, [currentUser]);
+
+  const loadBranches = async () => {
+    try {
+      const result = await api.branches.list();
+      const data = result?.data || result || [];
+      setBranches(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load branches:', error);
+    }
+  };
+
+  const loadShelves = async () => {
+    try {
+      const result = await api.inventory.shelves();
+      const data = result?.data || result || [];
+      setShelves(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load shelves:', error);
+    }
+  };
+
+  const loadWarehouses = async () => {
+    try {
+      const result = await api.inventory.warehouses();
+      const data = result?.data || result || [];
+      setWarehouses(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load warehouses:', error);
+    }
+  };
 
   const loadUsers = async () => {
     try {
@@ -121,7 +162,10 @@ export default function UsersScreen() {
 
     setSaving(true);
     try {
-      await api.users.create(newUser);
+      await api.users.create({
+        ...newUser,
+        ...(newUser.branchId ? { branchId: newUser.branchId } : {}),
+      });
       setShowAddModal(false);
       setNewUser({
         email: '',
@@ -129,6 +173,7 @@ export default function UsersScreen() {
         name: '',
         nameAr: '',
         role: 'SHELF_SALES',
+        branchId: '',
       });
       loadUsers();
       Alert.alert(
@@ -183,6 +228,44 @@ export default function UsersScreen() {
         },
       ]
     );
+  };
+
+  const openEditModal = async (user: User) => {
+    setSelectedUser(user);
+    setEditBranchId(user.branchId || '');
+    setEditWarehouseId((user as any).warehouseId || null);
+    // Find the shelf currently assigned to this user
+    const userShelf = shelves.find(s => s.userId === user.id);
+    setEditShelfId(userShelf?.id || null);
+    setShowEditModal(true);
+  };
+
+  const handleEditUser = async () => {
+    if (!selectedUser) return;
+    setSaving(true);
+    try {
+      await api.users.update({
+        id: selectedUser.id,
+        ...(editBranchId ? { branchId: editBranchId } : {}),
+        warehouseId: editWarehouseId,
+        shelfId: editShelfId,
+      });
+      // Reload shelves to reflect updated userId
+      await loadShelves();
+      setShowEditModal(false);
+      loadUsers();
+      Alert.alert(
+        locale === 'ar' ? 'نجح' : 'Success',
+        locale === 'ar' ? 'تم تحديث المستخدم بنجاح' : 'User updated successfully'
+      );
+    } catch (error: any) {
+      Alert.alert(
+        locale === 'ar' ? 'خطأ' : 'Error',
+        error?.message || (locale === 'ar' ? 'فشل في تحديث المستخدم' : 'Failed to update user')
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const filteredUsers = users.filter(u => {
@@ -257,16 +340,24 @@ export default function UsersScreen() {
           )}
         </View>
         
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: item.isActive ? theme.error + '15' : theme.success + '15' }]}
-          onPress={() => handleToggleActive(item)}
-        >
-          <Ionicons 
-            name={item.isActive ? 'ban' : 'checkmark-circle'} 
-            size={20} 
-            color={item.isActive ? theme.error : theme.success} 
-          />
-        </TouchableOpacity>
+        <View style={styles.cardActions}>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: theme.primary + '15' }]}
+            onPress={() => openEditModal(item)}
+          >
+            <Ionicons name="create-outline" size={20} color={theme.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: item.isActive ? theme.error + '15' : theme.success + '15' }]}
+            onPress={() => handleToggleActive(item)}
+          >
+            <Ionicons 
+              name={item.isActive ? 'ban' : 'checkmark-circle'} 
+              size={20} 
+              color={item.isActive ? theme.error : theme.success} 
+            />
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -452,6 +543,37 @@ export default function UsersScreen() {
                 ))}
               </View>
 
+              {/* Branch */}
+              {branches.length > 0 && (
+                <>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 16 }]}>
+                    {locale === 'ar' ? 'الفرع' : 'Branch'}
+                  </Text>
+                  <View style={styles.branchSelector}>
+                    {branches.map((branch) => (
+                      <TouchableOpacity
+                        key={branch.id}
+                        style={[
+                          styles.branchOption,
+                          {
+                            backgroundColor: newUser.branchId === branch.id ? theme.primary + '20' : theme.input,
+                            borderColor: newUser.branchId === branch.id ? theme.primary : theme.inputBorder,
+                          },
+                        ]}
+                        onPress={() => setNewUser({ ...newUser, branchId: branch.id })}
+                      >
+                        <Text style={[styles.branchOptionText, { color: newUser.branchId === branch.id ? theme.primary : theme.text }]}>
+                          {locale === 'ar' ? branch.nameAr : branch.name}
+                        </Text>
+                        {newUser.branchId === branch.id && (
+                          <Ionicons name="checkmark-circle" size={18} color={theme.primary} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
               <TouchableOpacity
                 style={[styles.submitButton, { backgroundColor: theme.primary }, saving && styles.submitButtonDisabled]}
                 onPress={handleAddUser}
@@ -462,6 +584,189 @@ export default function UsersScreen() {
                 ) : (
                   <Text style={styles.submitButtonText}>
                     {locale === 'ar' ? 'إضافة' : 'Add User'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit User Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            <View style={[styles.modalHeader, isRtl && styles.rowReverse]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                {locale === 'ar' ? 'تعديل المستخدم' : 'Edit User'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {selectedUser && (
+                <>
+                  <Text style={[styles.userName, { color: theme.text, marginBottom: 4 }]}>
+                    {locale === 'ar' ? selectedUser.nameAr || selectedUser.name : selectedUser.name}
+                  </Text>
+                  <Text style={[styles.userEmail, { color: theme.textSecondary, marginBottom: 16 }]}>
+                    {selectedUser.email}
+                  </Text>
+                </>
+              )}
+
+              {branches.length > 0 && (
+                <>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                    {locale === 'ar' ? 'الفرع' : 'Branch'}
+                  </Text>
+                  <View style={styles.branchSelector}>
+                    {branches.map((branch) => (
+                      <TouchableOpacity
+                        key={branch.id}
+                        style={[
+                          styles.branchOption,
+                          {
+                            backgroundColor: editBranchId === branch.id ? theme.primary + '20' : theme.input,
+                            borderColor: editBranchId === branch.id ? theme.primary : theme.inputBorder,
+                          },
+                        ]}
+                        onPress={() => setEditBranchId(branch.id)}
+                      >
+                        <Text style={[styles.branchOptionText, { color: editBranchId === branch.id ? theme.primary : theme.text }]}>
+                          {locale === 'ar' ? branch.nameAr : branch.name}
+                        </Text>
+                        {editBranchId === branch.id && (
+                          <Ionicons name="checkmark-circle" size={18} color={theme.primary} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {/* Shelf picker for SHELF_SALES users */}
+              {selectedUser?.role === 'SHELF_SALES' && shelves.length > 0 && (
+                <>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 16 }]}>
+                    {locale === 'ar' ? 'الرف المخصص' : 'Assigned Shelf'}
+                  </Text>
+                  <View style={styles.branchSelector}>
+                    <TouchableOpacity
+                      key="none"
+                      style={[
+                        styles.branchOption,
+                        {
+                          backgroundColor: editShelfId === null ? theme.error + '20' : theme.input,
+                          borderColor: editShelfId === null ? theme.error : theme.inputBorder,
+                        },
+                      ]}
+                      onPress={() => setEditShelfId(null)}
+                    >
+                      <Text style={[styles.branchOptionText, { color: editShelfId === null ? theme.error : theme.textSecondary }]}>
+                        {locale === 'ar' ? 'بدون رف' : 'No shelf'}
+                      </Text>
+                      {editShelfId === null && (
+                        <Ionicons name="checkmark-circle" size={18} color={theme.error} />
+                      )}
+                    </TouchableOpacity>
+                    {shelves.map((shelf) => (
+                      <TouchableOpacity
+                        key={shelf.id}
+                        style={[
+                          styles.branchOption,
+                          {
+                            backgroundColor: editShelfId === shelf.id ? theme.primary + '20' : theme.input,
+                            borderColor: editShelfId === shelf.id ? theme.primary : theme.inputBorder,
+                          },
+                        ]}
+                        onPress={() => setEditShelfId(shelf.id)}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.branchOptionText, { color: editShelfId === shelf.id ? theme.primary : theme.text }]}>
+                            {locale === 'ar' ? shelf.nameAr : shelf.name}
+                          </Text>
+                          {shelf.userId && shelf.userId !== selectedUser?.id && (
+                            <Text style={[{ fontSize: 11, color: theme.textMuted }]}>
+                              {locale === 'ar' ? 'مخصص لمستخدم آخر' : 'Assigned to another user'}
+                            </Text>
+                          )}
+                        </View>
+                        {editShelfId === shelf.id && (
+                          <Ionicons name="checkmark-circle" size={18} color={theme.primary} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {/* Warehouse picker for WAREHOUSE_SALES users */}
+              {selectedUser?.role === 'WAREHOUSE_SALES' && warehouses.length > 0 && (
+                <>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 16 }]}>
+                    {locale === 'ar' ? 'المخزن المخصص' : 'Assigned Warehouse'}
+                  </Text>
+                  <View style={styles.branchSelector}>
+                    <TouchableOpacity
+                      key="none"
+                      style={[
+                        styles.branchOption,
+                        {
+                          backgroundColor: editWarehouseId === null ? theme.error + '20' : theme.input,
+                          borderColor: editWarehouseId === null ? theme.error : theme.inputBorder,
+                        },
+                      ]}
+                      onPress={() => setEditWarehouseId(null)}
+                    >
+                      <Text style={[styles.branchOptionText, { color: editWarehouseId === null ? theme.error : theme.textSecondary }]}>
+                        {locale === 'ar' ? 'بدون مخزن' : 'No warehouse'}
+                      </Text>
+                      {editWarehouseId === null && (
+                        <Ionicons name="checkmark-circle" size={18} color={theme.error} />
+                      )}
+                    </TouchableOpacity>
+                    {warehouses.map((warehouse) => (
+                      <TouchableOpacity
+                        key={warehouse.id}
+                        style={[
+                          styles.branchOption,
+                          {
+                            backgroundColor: editWarehouseId === warehouse.id ? theme.primary + '20' : theme.input,
+                            borderColor: editWarehouseId === warehouse.id ? theme.primary : theme.inputBorder,
+                          },
+                        ]}
+                        onPress={() => setEditWarehouseId(warehouse.id)}
+                      >
+                        <Text style={[styles.branchOptionText, { color: editWarehouseId === warehouse.id ? theme.primary : theme.text }]}>
+                          {locale === 'ar' ? warehouse.nameAr : warehouse.name}
+                        </Text>
+                        {editWarehouseId === warehouse.id && (
+                          <Ionicons name="checkmark-circle" size={18} color={theme.primary} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              <TouchableOpacity
+                style={[styles.submitButton, { backgroundColor: theme.primary, marginTop: 24 }, saving && styles.submitButtonDisabled]}
+                onPress={handleEditUser}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>
+                    {locale === 'ar' ? 'حفظ' : 'Save Changes'}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -598,6 +903,10 @@ const styles = StyleSheet.create({
   lastLogin: {
     fontSize: 11,
     marginTop: 4,
+  },
+  cardActions: {
+    flexDirection: 'column',
+    gap: 6,
   },
   actionButton: {
     width: 40,

@@ -51,6 +51,7 @@ interface SupplierInvoice {
   transactionNumber?: string;
   paidDate?: string;
   notes?: string;
+  receiptImageUrl?: string;
 }
 
 export default function SupplierInvoiceDetailScreen() {
@@ -74,6 +75,7 @@ export default function SupplierInvoiceDetailScreen() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   useEffect(() => {
     if (id) loadInvoice();
@@ -394,8 +396,38 @@ export default function SupplierInvoiceDetailScreen() {
                 <Text style={[styles.infoValue, { color: theme.text }]}>{formatDate(invoice.paidDate)}</Text>
               </View>
             )}
+            {invoice.receiptImageUrl && (
+              <View style={[styles.infoRow, { marginTop: 12 }]}>
+                <Text style={[styles.infoLabel, { color: theme.textMuted }]}>
+                  {locale === 'ar' ? 'إيصال الدفع' : 'Payment Receipt'}
+                </Text>
+                <TouchableOpacity onPress={() => setShowReceiptModal(true)}>
+                  <Image
+                    source={{ uri: invoice.receiptImageUrl }}
+                    style={styles.receiptThumbnail}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
+
+        {/* Receipt Full Screen Modal */}
+        <Modal visible={showReceiptModal} transparent animationType="fade" onRequestClose={() => setShowReceiptModal(false)}>
+          <View style={styles.receiptModalOverlay}>
+            <TouchableOpacity style={styles.receiptModalClose} onPress={() => setShowReceiptModal(false)}>
+              <Ionicons name="close-circle" size={36} color="#fff" />
+            </TouchableOpacity>
+            {invoice?.receiptImageUrl && (
+              <Image
+                source={{ uri: invoice.receiptImageUrl }}
+                style={styles.receiptFullImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+        </Modal>
 
         {/* Purchase Order Items */}
         {invoice.purchaseOrder && invoice.purchaseOrder.lines && invoice.purchaseOrder.lines.length > 0 && (
@@ -908,5 +940,26 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 10,
     marginTop: 10,
+  },
+  receiptThumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+  },
+  receiptModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  receiptModalClose: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+  },
+  receiptFullImage: {
+    width: '90%',
+    height: '80%',
   },
 });

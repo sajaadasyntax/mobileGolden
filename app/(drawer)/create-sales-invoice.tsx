@@ -64,6 +64,7 @@ export default function CreateSalesInvoiceScreen() {
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+  const [showShelfPicker, setShowShelfPicker] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerSearch, setCustomerSearch] = useState('');
   const [loadingCustomers, setLoadingCustomers] = useState(false);
@@ -423,6 +424,30 @@ export default function CreateSalesInvoiceScreen() {
           )}
         </View>
 
+        {/* Shelf Selector - admin/manager can pick which shelf to sell from */}
+        {showUsd && shelves.length > 0 && (
+          <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              {locale === 'ar' ? 'موقع البيع (الرف)' : 'Selling Location (Shelf)'}
+            </Text>
+            <TouchableOpacity
+              style={[styles.selectButton, { backgroundColor: theme.input, borderColor: selectedShelfId ? theme.primary : theme.inputBorder }]}
+              onPress={() => setShowShelfPicker(true)}
+            >
+              <Ionicons name="layers-outline" size={20} color={selectedShelfId ? theme.primary : theme.textSecondary} />
+              <Text style={[styles.selectButtonText, { color: selectedShelfId ? theme.text : theme.textMuted }]}>
+                {selectedShelfId
+                  ? (() => {
+                      const shelf = shelves.find(s => s.id === selectedShelfId);
+                      return shelf ? (isRtl ? (shelf.nameAr || shelf.name) : shelf.name) : (locale === 'ar' ? 'حدد رفاً' : 'Select a shelf');
+                    })()
+                  : (locale === 'ar' ? 'حدد رفاً' : 'Select a shelf')}
+              </Text>
+              <Ionicons name={isRtl ? 'chevron-back' : 'chevron-forward'} size={20} color={theme.textMuted} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Exchange Rate Display - admin/manager only */}
         {showUsd && (
           <View style={[styles.rateCard, { backgroundColor: theme.infoBackground }]}>
@@ -642,6 +667,57 @@ export default function CreateSalesInvoiceScreen() {
         invoice={currentInvoice}
         onSave={handleSaveInvoice}
       />
+
+      {/* Shelf Picker Modal */}
+      <Modal visible={showShelfPicker} animationType="slide" transparent>
+        <View style={styles.customerModalOverlay}>
+          <View style={[styles.customerModalContent, { backgroundColor: theme.surface }]}>
+            <View style={[styles.customerModalHeader, isRtl && styles.rowReverse]}>
+              <Text style={[styles.customerModalTitle, { color: theme.text }]}>
+                {locale === 'ar' ? 'اختيار الرف' : 'Select Shelf'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowShelfPicker(false)}>
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={shelves}
+              keyExtractor={item => item.id}
+              style={[styles.customerList, { paddingTop: 8 }]}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.customerOption,
+                    {
+                      backgroundColor: selectedShelfId === item.id ? theme.primaryBackground : theme.card,
+                      borderColor: selectedShelfId === item.id ? theme.primary : theme.border,
+                    },
+                  ]}
+                  onPress={() => {
+                    setSelectedShelfId(item.id);
+                    setShowShelfPicker(false);
+                  }}
+                >
+                  <View style={[styles.customerOptionIcon, { backgroundColor: '#10b98120' }]}>
+                    <Ionicons name="layers-outline" size={20} color="#10b981" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.customerOptionName, { color: theme.text }]}>
+                      {isRtl ? (item.nameAr || item.name) : item.name}
+                    </Text>
+                    <Text style={[styles.customerOptionSub, { color: theme.textSecondary }]}>
+                      {item.code}
+                    </Text>
+                  </View>
+                  {selectedShelfId === item.id && (
+                    <Ionicons name="checkmark-circle" size={24} color={theme.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
 
       {/* Customer Picker Modal */}
       <Modal visible={showCustomerPicker} animationType="slide" transparent>
