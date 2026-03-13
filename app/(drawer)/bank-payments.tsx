@@ -17,13 +17,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
-import { api } from '@/lib/api';
+import { api, getFullUrl } from '@/lib/api';
 import { useRouter } from 'expo-router';
 
 interface BankPayment {
   id: string;
   amountSdg: number;
   receiptImageUrl: string;
+  receiptImageUrls?: string[];
+  transactionNumber?: string;
   description?: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt: string;
@@ -325,30 +327,47 @@ export default function BankPaymentsScreen() {
                     </Text>
                   </View>
 
-                  {/* Receipt Image */}
-                  {selectedPayment.receiptImageUrl && (
-                    <View style={styles.receiptSection}>
-                      <Text style={[styles.receiptLabel, { color: theme.textSecondary }]}>
-                        {locale === 'ar' ? 'صورة الإيصال' : 'Receipt Image'}
+                  {/* Transaction Number */}
+                  {selectedPayment.transactionNumber && (
+                    <View style={styles.detailRow}>
+                      <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                        {locale === 'ar' ? 'رقم المعاملة' : 'Transaction #'}
                       </Text>
-                      <TouchableOpacity
-                        onPress={() => setShowReceiptModal(true)}
-                        activeOpacity={0.8}
-                      >
-                        <Image
-                          source={{ uri: selectedPayment.receiptImageUrl }}
-                          style={styles.receiptThumbnail}
-                          resizeMode="cover"
-                        />
-                        <View style={[styles.viewFullBtn, { backgroundColor: theme.primary + '20' }]}>
-                          <Ionicons name="expand-outline" size={16} color={theme.primary} />
-                          <Text style={[styles.viewFullText, { color: theme.primary }]}>
-                            {locale === 'ar' ? 'عرض كامل' : 'View Full'}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
+                      <Text style={[styles.detailValue, { color: theme.text }]}>
+                        {selectedPayment.transactionNumber}
+                      </Text>
                     </View>
                   )}
+
+                  {/* Receipt Images */}
+                  {(() => {
+                    const images = (selectedPayment.receiptImageUrls?.length
+                      ? selectedPayment.receiptImageUrls
+                      : selectedPayment.receiptImageUrl ? [selectedPayment.receiptImageUrl] : []);
+                    return images.length > 0 ? (
+                      <View style={styles.receiptSection}>
+                        <Text style={[styles.receiptLabel, { color: theme.textSecondary }]}>
+                          {locale === 'ar' ? 'صور الإيصال' : 'Receipt Images'}
+                        </Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                          {images.map((img, idx) => (
+                            <TouchableOpacity
+                              key={idx}
+                              onPress={() => setShowReceiptModal(true)}
+                              activeOpacity={0.8}
+                              style={{ marginRight: 8 }}
+                            >
+                              <Image
+                                source={{ uri: getFullUrl(img) }}
+                                style={styles.receiptThumbnail}
+                                resizeMode="cover"
+                              />
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    ) : null;
+                  })()}
 
                   {/* Action buttons for PENDING payments */}
                   {selectedPayment.status === 'PENDING' && (
@@ -394,7 +413,7 @@ export default function BankPaymentsScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Full Receipt Image Modal */}
+      {/* Full Receipt Images Modal */}
       <Modal
         visible={showReceiptModal}
         transparent
@@ -408,13 +427,23 @@ export default function BankPaymentsScreen() {
           >
             <Ionicons name="close-circle" size={40} color="#fff" />
           </TouchableOpacity>
-          {selectedPayment?.receiptImageUrl && (
-            <Image
-              source={{ uri: selectedPayment.receiptImageUrl }}
-              style={styles.receiptFullImage}
-              resizeMode="contain"
-            />
-          )}
+          {selectedPayment && (() => {
+            const images = (selectedPayment.receiptImageUrls?.length
+              ? selectedPayment.receiptImageUrls
+              : selectedPayment.receiptImageUrl ? [selectedPayment.receiptImageUrl] : []);
+            return (
+              <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width: '100%' }}>
+                {images.map((img, idx) => (
+                  <Image
+                    key={idx}
+                    source={{ uri: getFullUrl(img) }}
+                    style={styles.receiptFullImage}
+                    resizeMode="contain"
+                  />
+                ))}
+              </ScrollView>
+            );
+          })()}
         </View>
       </Modal>
     </View>

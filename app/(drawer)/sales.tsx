@@ -11,6 +11,7 @@ import {
   Alert,
   Modal,
   Image,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -18,7 +19,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { t } from '@/lib/i18n';
-import { api } from '@/lib/api';
+import { api, getFullUrl } from '@/lib/api';
 
 interface SalesInvoice {
   id: string;
@@ -28,7 +29,19 @@ interface SalesInvoice {
   totalUsd: number;
   status: string;
   invoiceType: string;
+  paymentMethod?: string;
+  transactionNumber?: string;
+  receiptImageUrls?: string[];
   customer?: { name: string };
+  createdBy?: { id: string; name: string };
+  shelf?: { name: string; nameAr: string };
+  lines?: Array<{
+    id: string;
+    qty: number;
+    unitPriceSdg: number;
+    totalSdg: number;
+    item: { nameEn: string; nameAr: string; sku: string; unit?: { nameEn: string } };
+  }>;
 }
 
 export default function SalesScreen() {
@@ -42,11 +55,14 @@ export default function SalesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<SalesInvoice | null>(null);
   const [showActionModal, setShowActionModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [receiptImages, setReceiptImages] = useState<string[]>([]);
   const [loadingReceipt, setLoadingReceipt] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [detailedInvoice, setDetailedInvoice] = useState<SalesInvoice | null>(null);
   const isRtl = locale === 'ar';
-  
+
   // Check if user can void invoices
   const canVoidInvoice = user?.role === 'ADMIN' || user?.role === 'MANAGER';
 
@@ -104,9 +120,21 @@ export default function SalesScreen() {
     });
   };
 
-  const handleInvoicePress = (invoice: SalesInvoice) => {
+  const handleInvoicePress = async (invoice: SalesInvoice) => {
     setSelectedInvoice(invoice);
     setShowActionModal(true);
+    // Fetch full details in background
+    if (showUsd) {
+      setLoadingDetail(true);
+      try {
+        const detail = await api.sales.getInvoice(invoice.id);
+        setDetailedInvoice(detail);
+      } catch (e) {
+        console.error('Failed to load invoice detail', e);
+      } finally {
+        setLoadingDetail(false);
+      }
+    }
   };
 
   const handleVoidInvoice = async () => {
@@ -146,15 +174,25 @@ export default function SalesScreen() {
 
   const handleViewReceipt = async () => {
     if (!selectedInvoice || !user?.branchId) return;
+
+    // Check if detailedInvoice has receipt image URLs directly
+    const directImages = detailedInvoice?.receiptImageUrls?.length
+      ? detailedInvoice.receiptImageUrls
+      : [];
+    if (directImages.length > 0) {
+      setReceiptImages(directImages);
+      setShowActionModal(false);
+      setShowReceiptModal(true);
+      return;
+    }
+
     setLoadingReceipt(true);
     try {
-      // Look up BANK_IN/BANK_OUT transactions that might be linked to this invoice
       const result = await api.accounting.transactions.list(user.branchId, {
         transactionType: 'BANK_IN',
         pageSize: 50,
       });
       const transactions: any[] = result?.data || result || [];
-      // Find a transaction whose referenceNumber matches the invoice number
       const linked = transactions.find(
         (tx: any) =>
           tx.referenceNumber === selectedInvoice.invoiceNumber ||
@@ -290,112 +328,216 @@ export default function SalesScreen() {
         }
       />
 
-      {/* Invoice Action Modal */}
+      {/* Invoice Detail/Action Modal */}
       <Modal
         visible={showActionModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowActionModal(false)}
+        onRequestClose={() => { setShowActionModal(false); setDetailedInvoice(null); }}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
-          onPress={() => setShowActionModal(false)}
+          onPress={() => { setShowActionModal(false); setDetailedInvoice(null); }}
         >
+          <TouchableOpacity activeOpacity={1}>
           <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: theme.text }]}>
                 {selectedInvoice?.invoiceNumber}
               </Text>
-              <TouchableOpacity onPress={() => setShowActionModal(false)}>
+              <TouchableOpacity onPress={() => { setShowActionModal(false); setDetailedInvoice(null); }}>
                 <Ionicons name="close" size={24} color={theme.text} />
               </TouchableOpacity>
             </View>
-            
-            {/* Invoice Details */}
-            <View style={[styles.modalDetails, { borderColor: theme.border }]}>
-              <View style={[styles.detailRow, isRtl && styles.detailRowRtl]}>
-                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                  {locale === 'ar' ? 'العميل' : 'Customer'}:
-                </Text>
-                <Text style={[styles.detailValue, { color: theme.text }]}>
-                  {selectedInvoice?.customer?.name || (locale === 'ar' ? 'عميل نقدي' : 'Walk-in')}
-                </Text>
-              </View>
-              <View style={[styles.detailRow, isRtl && styles.detailRowRtl]}>
-                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                  {locale === 'ar' ? 'المبلغ' : 'Amount'}:
-                </Text>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={[styles.detailValue, { color: theme.success }]}>
-                    {formatCurrency(Number(selectedInvoice?.totalSdg || 0), 'SDG')}
-                  </Text>
-                  {showUsd && (
-                    <Text style={{ fontSize: 11, color: theme.textSecondary }}>
-                      ${Number(selectedInvoice?.totalUsd || 0).toFixed(2)}
-                    </Text>
-                  )}
-                </View>
-              </View>
-              <View style={[styles.detailRow, isRtl && styles.detailRowRtl]}>
-                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                  {locale === 'ar' ? 'الحالة' : 'Status'}:
-                </Text>
-                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedInvoice?.status || '') + '20' }]}>
-                  <Text style={[styles.statusText, { color: getStatusColor(selectedInvoice?.status || '') }]}>
-                    {selectedInvoice?.status}
-                  </Text>
-                </View>
-              </View>
-            </View>
-            
-            {/* Action Buttons */}
-            <View style={styles.modalActions}>
-              {/* View/Print Invoice */}
-              <TouchableOpacity 
-                style={[styles.actionButton, { backgroundColor: theme.primaryBackground }]}
-                onPress={() => {
-                  setShowActionModal(false);
-                }}
-              >
-                <Ionicons name="eye-outline" size={20} color={theme.primary} />
-                <Text style={[styles.actionButtonText, { color: theme.primary }]}>
-                  {locale === 'ar' ? 'عرض الفاتورة' : 'View Invoice'}
-                </Text>
-              </TouchableOpacity>
 
-              {/* View Receipt - admin/manager only */}
-              {showUsd && (
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: theme.infoBackground || theme.primaryBackground }]}
-                  onPress={handleViewReceipt}
-                  disabled={loadingReceipt}
-                >
-                  {loadingReceipt ? (
-                    <ActivityIndicator size="small" color={theme.info || theme.primary} />
-                  ) : (
-                    <Ionicons name="image-outline" size={20} color={theme.info || theme.primary} />
-                  )}
-                  <Text style={[styles.actionButtonText, { color: theme.info || theme.primary }]}>
-                    {locale === 'ar' ? 'عرض الإيصال' : 'View Receipt'}
+            <ScrollView style={{ maxHeight: 520 }}>
+              {/* Invoice Summary */}
+              <View style={[styles.modalDetails, { borderColor: theme.border }]}>
+                <View style={[styles.detailRow, isRtl && styles.detailRowRtl]}>
+                  <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                    {locale === 'ar' ? 'العميل' : 'Customer'}:
                   </Text>
-                </TouchableOpacity>
-              )}
-              
-              {/* Void Invoice - Only for admin/manager and non-cancelled invoices */}
-              {canVoidInvoice && selectedInvoice?.status !== 'CANCELLED' && selectedInvoice?.status !== 'VOIDED' && (
-                <TouchableOpacity 
-                  style={[styles.actionButton, { backgroundColor: theme.errorBackground }]}
-                  onPress={handleVoidInvoice}
-                >
-                  <Ionicons name="close-circle-outline" size={20} color={theme.error} />
-                  <Text style={[styles.actionButtonText, { color: theme.error }]}>
-                    {locale === 'ar' ? 'إلغاء الفاتورة' : 'Void Invoice'}
+                  <Text style={[styles.detailValue, { color: theme.text }]}>
+                    {selectedInvoice?.customer?.name || (locale === 'ar' ? 'عميل نقدي' : 'Walk-in')}
                   </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+                </View>
+                <View style={[styles.detailRow, isRtl && styles.detailRowRtl]}>
+                  <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                    {locale === 'ar' ? 'المبلغ' : 'Amount'}:
+                  </Text>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={[styles.detailValue, { color: theme.success }]}>
+                      {formatCurrency(Number(selectedInvoice?.totalSdg || 0), 'SDG')}
+                    </Text>
+                    {showUsd && (
+                      <Text style={{ fontSize: 11, color: theme.textSecondary }}>
+                        ${Number(selectedInvoice?.totalUsd || 0).toFixed(2)}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <View style={[styles.detailRow, isRtl && styles.detailRowRtl]}>
+                  <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                    {locale === 'ar' ? 'الحالة' : 'Status'}:
+                  </Text>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedInvoice?.status || '') + '20' }]}>
+                    <Text style={[styles.statusText, { color: getStatusColor(selectedInvoice?.status || '') }]}>
+                      {selectedInvoice?.status}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Extended details for admin/manager */}
+                {showUsd && loadingDetail && (
+                  <ActivityIndicator size="small" color={theme.primary} style={{ marginTop: 8 }} />
+                )}
+                {showUsd && detailedInvoice && (
+                  <>
+                    {detailedInvoice.paymentMethod && (
+                      <View style={[styles.detailRow, isRtl && styles.detailRowRtl]}>
+                        <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                          {locale === 'ar' ? 'طريقة الدفع' : 'Payment'}:
+                        </Text>
+                        <Text style={[styles.detailValue, { color: theme.text }]}>
+                          {detailedInvoice.paymentMethod === 'BANK_TRANSFER'
+                            ? (locale === 'ar' ? 'تحويل بنكي' : 'Bank Transfer')
+                            : detailedInvoice.paymentMethod === 'CASH'
+                            ? (locale === 'ar' ? 'نقدي' : 'Cash')
+                            : detailedInvoice.paymentMethod}
+                        </Text>
+                      </View>
+                    )}
+                    {detailedInvoice.transactionNumber && (
+                      <View style={[styles.detailRow, isRtl && styles.detailRowRtl]}>
+                        <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                          {locale === 'ar' ? 'رقم المعاملة' : 'Transaction #'}:
+                        </Text>
+                        <Text style={[styles.detailValue, { color: theme.text }]}>
+                          {detailedInvoice.transactionNumber}
+                        </Text>
+                      </View>
+                    )}
+                    {detailedInvoice.createdBy && (
+                      <View style={[styles.detailRow, isRtl && styles.detailRowRtl]}>
+                        <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                          {locale === 'ar' ? 'أنشأ بواسطة' : 'Created By'}:
+                        </Text>
+                        <Text style={[styles.detailValue, { color: theme.text }]}>
+                          {detailedInvoice.createdBy.name}
+                        </Text>
+                      </View>
+                    )}
+                    {detailedInvoice.shelf && (
+                      <View style={[styles.detailRow, isRtl && styles.detailRowRtl]}>
+                        <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                          {locale === 'ar' ? 'الرف' : 'Shelf'}:
+                        </Text>
+                        <Text style={[styles.detailValue, { color: theme.text }]}>
+                          {isRtl ? detailedInvoice.shelf.nameAr : detailedInvoice.shelf.name}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Receipt Images */}
+                    {detailedInvoice.receiptImageUrls && detailedInvoice.receiptImageUrls.length > 0 && (
+                      <View style={{ marginTop: 8 }}>
+                        <Text style={[styles.detailLabel, { color: theme.textSecondary, marginBottom: 6 }]}>
+                          {locale === 'ar' ? 'صور الإيصال' : 'Receipt Images'}:
+                        </Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                          {detailedInvoice.receiptImageUrls.map((url, idx) => (
+                            <TouchableOpacity
+                              key={idx}
+                              onPress={() => {
+                                setReceiptImages(detailedInvoice.receiptImageUrls!);
+                                setShowActionModal(false);
+                                setShowReceiptModal(true);
+                              }}
+                              style={{ marginRight: 8 }}
+                            >
+                              <Image
+                                source={{ uri: getFullUrl(url) }}
+                                style={{ width: 80, height: 80, borderRadius: 8 }}
+                                resizeMode="cover"
+                              />
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+
+                    {/* Line Items */}
+                    {detailedInvoice.lines && detailedInvoice.lines.length > 0 && (
+                      <View style={{ marginTop: 12 }}>
+                        <Text style={[styles.detailLabel, { color: theme.textSecondary, marginBottom: 8, fontWeight: '600' }]}>
+                          {locale === 'ar' ? 'الأصناف' : 'Line Items'}:
+                        </Text>
+                        {detailedInvoice.lines.map((line) => (
+                          <View
+                            key={line.id}
+                            style={[styles.lineItem, { borderBottomColor: theme.border }]}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text style={[{ color: theme.text, fontSize: 13, fontWeight: '500' }]}>
+                                {isRtl ? line.item.nameAr : line.item.nameEn}
+                              </Text>
+                              <Text style={{ color: theme.textMuted, fontSize: 11 }}>
+                                {line.item.sku} • {line.qty} {line.item.unit?.nameEn || ''}
+                              </Text>
+                            </View>
+                            <View style={{ alignItems: 'flex-end' }}>
+                              <Text style={{ color: theme.primary, fontWeight: '600', fontSize: 13 }}>
+                                {Number(line.totalSdg).toLocaleString()} {locale === 'ar' ? 'ج.س' : 'SDG'}
+                              </Text>
+                              <Text style={{ color: theme.textMuted, fontSize: 11 }}>
+                                {Number(line.unitPriceSdg).toLocaleString()} × {line.qty}
+                              </Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
+
+              {/* Action Buttons */}
+              <View style={styles.modalActions}>
+                {/* View Receipt - admin/manager only */}
+                {showUsd && (
+                  <TouchableOpacity
+                    style={[styles.actionButton, { backgroundColor: theme.infoBackground || theme.primaryBackground }]}
+                    onPress={handleViewReceipt}
+                    disabled={loadingReceipt}
+                  >
+                    {loadingReceipt ? (
+                      <ActivityIndicator size="small" color={theme.info || theme.primary} />
+                    ) : (
+                      <Ionicons name="image-outline" size={20} color={theme.info || theme.primary} />
+                    )}
+                    <Text style={[styles.actionButtonText, { color: theme.info || theme.primary }]}>
+                      {locale === 'ar' ? 'عرض الإيصال' : 'View Receipt'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Void Invoice - Only for admin/manager and non-cancelled invoices */}
+                {canVoidInvoice && selectedInvoice?.status !== 'CANCELLED' && selectedInvoice?.status !== 'VOIDED' && (
+                  <TouchableOpacity
+                    style={[styles.actionButton, { backgroundColor: theme.errorBackground }]}
+                    onPress={handleVoidInvoice}
+                  >
+                    <Ionicons name="close-circle-outline" size={20} color={theme.error} />
+                    <Text style={[styles.actionButtonText, { color: theme.error }]}>
+                      {locale === 'ar' ? 'إلغاء الفاتورة' : 'Void Invoice'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </ScrollView>
           </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
 
@@ -413,13 +555,16 @@ export default function SalesScreen() {
           >
             <Ionicons name="close-circle" size={40} color="#fff" />
           </TouchableOpacity>
-          {receiptImages.length > 0 && (
-            <Image
-              source={{ uri: receiptImages[0] }}
-              style={styles.receiptFullImage}
-              resizeMode="contain"
-            />
-          )}
+          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width: '100%' }}>
+            {receiptImages.map((img, idx) => (
+              <Image
+                key={idx}
+                source={{ uri: getFullUrl(img) }}
+                style={styles.receiptFullImage}
+                resizeMode="contain"
+              />
+            ))}
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -620,6 +765,13 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  lineItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
   },
   receiptModalOverlay: {
     flex: 1,

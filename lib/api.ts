@@ -15,10 +15,16 @@ const getDefaultApiUrl = () => {
   return 'http://localhost:4000';
 };
 
-const API_URL = 
+export const API_URL = 
   process.env.EXPO_PUBLIC_API_URL || 
   Constants.expoConfig?.extra?.apiUrl || 
   getDefaultApiUrl();
+
+export const getFullUrl = (url?: string | null): string => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return `${API_URL}${url}`;
+};
 
 // Debug logging (disabled in production)
 // console.log('API URL:', API_URL);
@@ -644,6 +650,28 @@ export const api = {
         transactionCount?: number;
       }) => trpcMutation<any>('sales.dailyAggregate.update', { shelfId, ...data }),
     },
+    // Server-side daily invoice draft
+    dailyInvoiceDraft: {
+      getOrCreate: (shelfId: string) =>
+        trpcQuery<any>('sales.dailyInvoiceDraft.getOrCreate', { shelfId }),
+      addLine: (data: { shelfId: string; itemId: string; qty: number; unitPriceUsd: number; batchId?: string }) =>
+        trpcMutation<any>('sales.dailyInvoiceDraft.addLine', data),
+      removeLine: (lineId: string) =>
+        trpcMutation<any>('sales.dailyInvoiceDraft.removeLine', { lineId }),
+      updateLineQty: (lineId: string, qty: number) =>
+        trpcMutation<any>('sales.dailyInvoiceDraft.updateLineQty', { lineId, qty }),
+      clearDraft: (shelfId: string) =>
+        trpcMutation<any>('sales.dailyInvoiceDraft.clearDraft', { shelfId }),
+      checkout: (data: {
+        shelfId: string;
+        paymentMethod: 'CASH' | 'BANK_TRANSFER' | 'MIXED';
+        cashAmountSdg?: number;
+        cardAmountSdg?: number;
+        transactionNumber?: string;
+        receiptImageUrls?: string[];
+        customerId?: string;
+      }) => trpcMutation<any>('sales.dailyInvoiceDraft.checkout', data),
+    },
   },
   procurement: {
     orders: (branchId: string, page = 1, options?: { supplierId?: string; status?: string }) => 
@@ -906,6 +934,7 @@ export const api = {
         paymentMethod: 'CASH' | 'BANK_TRANSFER';
         transactionNumber?: string;
         receiptImageUrl?: string;
+        receiptImageUrls?: string[];
         paidAmountSdg?: number;
       }) => trpcMutation<any>('accounting.supplierInvoices.payInvoice', data),
       
@@ -930,7 +959,7 @@ export const api = {
 
     // Bank Payments
     bankPayments: {
-      submit: (data: { bankAccountId: string; amountSdg: number; transactionId?: string; receiptImageUrl: string; description?: string }) =>
+      submit: (data: { bankAccountId: string; amountSdg: number; transactionId?: string; transactionNumber?: string; receiptImageUrl: string; receiptImageUrls?: string[]; description?: string }) =>
         trpcMutation<any>('accounting.bankPayments.submit', data),
       list: (options?: { status?: string; userId?: string; bankAccountId?: string; startDate?: string; endDate?: string; page?: number; pageSize?: number }) =>
         trpcQuery<any>('accounting.bankPayments.list', {

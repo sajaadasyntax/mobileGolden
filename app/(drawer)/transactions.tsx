@@ -18,7 +18,7 @@ import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
-import { api } from '@/lib/api';
+import { api, getFullUrl } from '@/lib/api';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -247,7 +247,7 @@ export default function TransactionsScreen() {
         {hasReceipts && (
           <View style={[styles.thumbnailRow, isRtl ? { paddingRight: 60, paddingLeft: 0 } : {}]}>
             {item.receiptImages!.slice(0, 3).map((uri, idx) => (
-              <Image key={idx} source={{ uri }} style={styles.thumbnail} resizeMode="cover" />
+              <Image key={idx} source={{ uri: getFullUrl(uri) }} style={styles.thumbnail} resizeMode="cover" />
             ))}
             {item.receiptImages!.length > 3 && (
               <View style={[styles.thumbnailMore, { backgroundColor: theme.primary + '30' }]}>
@@ -395,7 +395,7 @@ export default function TransactionsScreen() {
                 {selectedTransaction.receiptImages.map((imageUri, index) => (
                   <View key={index} style={styles.imageContainer}>
                     <Image
-                      source={{ uri: imageUri }}
+                      source={{ uri: getFullUrl(imageUri) }}
                       style={styles.receiptImage}
                       resizeMode="contain"
                     />

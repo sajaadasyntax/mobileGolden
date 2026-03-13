@@ -500,7 +500,7 @@ export default function CreateSalesInvoiceScreen() {
                       {isRtl ? (item.nameAr || item.name) : item.name}
                     </Text>
                     <Text style={[styles.itemSku, { color: theme.textMuted }]}>
-                      {item.sku || 'No SKU'} • {formatCurrency(item.unitPrice, 'USD')}
+                      {item.sku || 'No SKU'}{showUsd ? ` • ${formatCurrency(item.unitPrice, 'USD')}` : ''}
                     </Text>
                   </View>
                   <TouchableOpacity

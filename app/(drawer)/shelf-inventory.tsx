@@ -41,6 +41,7 @@ export default function ShelfInventoryScreen() {
   const { theme } = useThemeStore();
   const { user } = useAuthStore();
   const isRtl = locale === 'ar';
+  const showUsd = user?.role === 'ADMIN' || user?.role === 'MANAGER';
 
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -257,14 +258,16 @@ export default function ShelfInventoryScreen() {
               {formatDate(batch.expiryDate)}
             </Text>
           </View>
-          <View style={styles.batchDetail}>
-            <Text style={[styles.batchDetailLabel, { color: theme.textMuted }]}>
-              {locale === 'ar' ? 'التكلفة' : 'Cost'}
-            </Text>
-            <Text style={[styles.batchDetailValue, { color: theme.text }]}>
-              ${batch.unitCostUsd.toFixed(2)}
-            </Text>
-          </View>
+          {showUsd && (
+            <View style={styles.batchDetail}>
+              <Text style={[styles.batchDetailLabel, { color: theme.textMuted }]}>
+                {locale === 'ar' ? 'التكلفة' : 'Cost'}
+              </Text>
+              <Text style={[styles.batchDetailValue, { color: theme.text }]}>
+                ${batch.unitCostUsd.toFixed(2)}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     );

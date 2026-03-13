@@ -19,7 +19,7 @@ import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
-import { api, uploadReceipt } from '@/lib/api';
+import { api, uploadReceipt, getFullUrl } from '@/lib/api';
 
 interface SupplierInvoice {
   id: string;
@@ -73,7 +73,7 @@ export default function SupplierInvoiceDetailScreen() {
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER'>('CASH');
   const [transactionNumber, setTransactionNumber] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [receiptUri, setReceiptUri] = useState<string | null>(null);
+  const [receiptUris, setReceiptUris] = useState<string[]>([]);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
@@ -117,10 +117,10 @@ export default function SupplierInvoiceDetailScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
-      allowsEditing: true,
+      allowsMultipleSelection: true,
     });
-    if (!result.canceled && result.assets[0]) {
-      setReceiptUri(result.assets[0].uri);
+    if (!result.canceled && result.assets) {
+      setReceiptUris(prev => [...prev, ...result.assets.map(a => a.uri)]);
     }
   };
 
@@ -132,8 +132,13 @@ export default function SupplierInvoiceDetailScreen() {
       return;
     }
 
-    if (paymentMethod === 'BANK_TRANSFER' && !receiptUri) {
+    if (paymentMethod === 'BANK_TRANSFER' && receiptUris.length === 0) {
       Alert.alert(t('error', locale), locale === 'ar' ? 'يرجى إرفاق صورة الإيصال' : 'Please attach a receipt image for bank transfer');
+      return;
+    }
+
+    if (paymentMethod === 'BANK_TRANSFER' && transactionNumber && !/^\d{6}$/.test(transactionNumber)) {
+      Alert.alert(t('error', locale), locale === 'ar' ? 'رقم المعاملة يجب أن يكون 6 أرقام' : 'Transaction number must be exactly 6 digits');
       return;
     }
 
@@ -146,10 +151,15 @@ export default function SupplierInvoiceDetailScreen() {
     setProcessing(true);
     try {
       let receiptImageUrl: string | undefined;
-      if (paymentMethod === 'BANK_TRANSFER' && receiptUri) {
+      let receiptImageUrls: string[] = [];
+      if (paymentMethod === 'BANK_TRANSFER' && receiptUris.length > 0) {
         setUploadingReceipt(true);
         try {
-          receiptImageUrl = await uploadReceipt(receiptUri);
+          for (const uri of receiptUris) {
+            const url = await uploadReceipt(uri);
+            receiptImageUrls.push(url);
+          }
+          receiptImageUrl = receiptImageUrls[0];
         } finally {
           setUploadingReceipt(false);
         }
@@ -161,12 +171,13 @@ export default function SupplierInvoiceDetailScreen() {
         transactionNumber: transactionNumber || undefined,
         paidAmountSdg: amount,
         receiptImageUrl,
+        receiptImageUrls,
       });
 
       Alert.alert(t('success', locale), locale === 'ar' ? 'تم تسجيل الدفع بنجاح' : 'Payment recorded successfully');
       setShowPaymentModal(false);
       setTransactionNumber('');
-      setReceiptUri(null);
+      setReceiptUris([]);
       loadInvoice();
     } catch (error: any) {
       Alert.alert(t('error', locale), error.message || (locale === 'ar' ? 'فشل في تسجيل الدفع' : 'Failed to record payment'));
@@ -403,7 +414,7 @@ export default function SupplierInvoiceDetailScreen() {
                 </Text>
                 <TouchableOpacity onPress={() => setShowReceiptModal(true)}>
                   <Image
-                    source={{ uri: invoice.receiptImageUrl }}
+                    source={{ uri: getFullUrl(invoice.receiptImageUrl) }}
                     style={styles.receiptThumbnail}
                     resizeMode="cover"
                   />
@@ -421,7 +432,7 @@ export default function SupplierInvoiceDetailScreen() {
             </TouchableOpacity>
             {invoice?.receiptImageUrl && (
               <Image
-                source={{ uri: invoice.receiptImageUrl }}
+                source={{ uri: getFullUrl(invoice.receiptImageUrl) }}
                 style={styles.receiptFullImage}
                 resizeMode="contain"
               />
@@ -579,33 +590,45 @@ export default function SupplierInvoiceDetailScreen() {
               {paymentMethod === 'BANK_TRANSFER' && (
                 <>
                   <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 16 }]}>
-                    {locale === 'ar' ? 'رقم العملية *' : 'Transaction Number *'}
+                    {locale === 'ar' ? 'رقم المعاملة (6 أرقام) *' : 'Transaction Number (6 digits) *'}
                   </Text>
                   <TextInput
                     style={[styles.textInput, { backgroundColor: theme.input, borderColor: theme.inputBorder, color: theme.text }]}
                     value={transactionNumber}
-                    onChangeText={setTransactionNumber}
-                    placeholder={locale === 'ar' ? 'أدخل رقم العملية' : 'Enter transaction number'}
+                    onChangeText={(v) => setTransactionNumber(v.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
                     placeholderTextColor={theme.inputPlaceholder}
+                    keyboardType="number-pad"
+                    maxLength={6}
                   />
 
                   <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 16 }]}>
-                    {locale === 'ar' ? 'صورة الإيصال *' : 'Receipt Image *'}
+                    {locale === 'ar' ? 'صور الإيصال *' : 'Receipt Images *'}
                   </Text>
-                  <TouchableOpacity
-                    style={[styles.receiptPickerBtn, { borderColor: receiptUri ? theme.success : theme.border, backgroundColor: theme.input }]}
-                    onPress={pickReceiptImage}
-                  >
-                    <Ionicons name={receiptUri ? 'checkmark-circle' : 'camera'} size={20} color={receiptUri ? theme.success : theme.textMuted} />
-                    <Text style={[styles.receiptPickerText, { color: receiptUri ? theme.success : theme.textMuted }]}>
-                      {receiptUri
-                        ? (locale === 'ar' ? 'تم اختيار الصورة' : 'Image selected')
-                        : (locale === 'ar' ? 'اختر صورة الإيصال' : 'Choose receipt image')}
-                    </Text>
-                  </TouchableOpacity>
-                  {receiptUri && (
-                    <Image source={{ uri: receiptUri }} style={styles.receiptPreview} resizeMode="cover" />
-                  )}
+                  <ScrollView horizontal style={{ marginBottom: 8 }} showsHorizontalScrollIndicator={false}>
+                    {receiptUris.map((uri, idx) => (
+                      <View key={idx} style={{ position: 'relative', marginRight: 8 }}>
+                        <Image source={{ uri }} style={styles.receiptPreview} resizeMode="cover" />
+                        <TouchableOpacity
+                          style={{ position: 'absolute', top: -6, right: -6, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 10 }}
+                          onPress={() => setReceiptUris(prev => prev.filter((_, i) => i !== idx))}
+                        >
+                          <Ionicons name="close-circle" size={20} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    <TouchableOpacity
+                      style={[styles.receiptPickerBtn, { borderColor: receiptUris.length > 0 ? theme.success : theme.border, backgroundColor: theme.input }]}
+                      onPress={pickReceiptImage}
+                    >
+                      <Ionicons name="add-circle-outline" size={20} color={receiptUris.length > 0 ? theme.success : theme.textMuted} />
+                      <Text style={[styles.receiptPickerText, { color: receiptUris.length > 0 ? theme.success : theme.textMuted }]}>
+                        {receiptUris.length > 0
+                          ? (locale === 'ar' ? `${receiptUris.length} صور` : `${receiptUris.length} images`)
+                          : (locale === 'ar' ? 'إضافة صور' : 'Add images')}
+                      </Text>
+                    </TouchableOpacity>
+                  </ScrollView>
                 </>
               )}
             </View>

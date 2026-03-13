@@ -499,7 +499,9 @@ export default function InvoiceItemPicker({ visible, onClose, onSelect, priceTyp
             >
               <Ionicons name="add-circle" size={20} color="#fff" />
               <Text style={styles.addButtonText}>
-                {t('addItem', locale)} - ${(getItemPrice(selectedItem) * parseInt(quantity || '0')).toFixed(2)}
+                {t('addItem', locale)} - {showUsd
+                  ? `$${(getItemPrice(selectedItem) * parseInt(quantity || '0')).toFixed(2)}`
+                  : `${(getItemPrice(selectedItem) * exchangeRate * parseInt(quantity || '0')).toLocaleString()} ${locale === 'ar' ? 'ج.س' : 'SDG'}`}
               </Text>
             </TouchableOpacity>
           </View>
