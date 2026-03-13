@@ -162,10 +162,15 @@ export default function UsersScreen() {
 
     setSaving(true);
     try {
-      await api.users.create({
-        ...newUser,
-        ...(newUser.branchId ? { branchId: newUser.branchId } : {}),
-      });
+      const payload: Record<string, unknown> = {
+        email: newUser.email,
+        password: newUser.password,
+        name: newUser.name,
+        role: newUser.role,
+      };
+      if (newUser.nameAr?.trim()) payload.nameAr = newUser.nameAr.trim();
+      if (newUser.branchId?.trim()) payload.branchId = newUser.branchId.trim();
+      await api.users.create(payload as Parameters<typeof api.users.create>[0]);
       setShowAddModal(false);
       setNewUser({
         email: '',
@@ -244,12 +249,13 @@ export default function UsersScreen() {
     if (!selectedUser) return;
     setSaving(true);
     try {
-      await api.users.update({
+      const payload: Record<string, unknown> = {
         id: selectedUser.id,
-        ...(editBranchId ? { branchId: editBranchId } : {}),
         warehouseId: editWarehouseId,
         shelfId: editShelfId,
-      });
+      };
+      if (editBranchId?.trim()) payload.branchId = editBranchId.trim();
+      await api.users.update(payload as Parameters<typeof api.users.update>[0]);
       // Reload shelves to reflect updated userId
       await loadShelves();
       setShowEditModal(false);

@@ -12,6 +12,7 @@ import {
   Modal,
   Image,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocaleStore } from '@/stores/locale';
@@ -432,14 +433,15 @@ export default function BankPaymentsScreen() {
               ? selectedPayment.receiptImageUrls
               : selectedPayment.receiptImageUrl ? [selectedPayment.receiptImageUrl] : []);
             return (
-              <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width: '100%' }}>
+              <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width: Dimensions.get('window').width }}>
                 {images.map((img, idx) => (
-                  <Image
-                    key={idx}
-                    source={{ uri: getFullUrl(img) }}
-                    style={styles.receiptFullImage}
-                    resizeMode="contain"
-                  />
+                  <View key={idx} style={[styles.receiptPage, { width: Dimensions.get('window').width }]}>
+                    <Image
+                      source={{ uri: getFullUrl(img) }}
+                      style={styles.receiptFullImage}
+                      resizeMode="contain"
+                    />
+                  </View>
                 ))}
               </ScrollView>
             );
@@ -571,8 +573,12 @@ const styles = StyleSheet.create({
     right: 20,
     zIndex: 10,
   },
+  receiptPage: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   receiptFullImage: {
-    width: '95%',
-    height: '80%',
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height * 0.8,
   },
 });

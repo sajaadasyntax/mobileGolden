@@ -20,7 +20,7 @@ import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
 import { api, getFullUrl } from '@/lib/api';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface Transaction {
   id: string;
@@ -640,8 +640,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   receiptImage: {
-    width: '100%',
-    height: 400,
+    width: screenWidth - 40,
+    height: screenHeight * 0.6,
     borderRadius: 12,
   },
   imageCounter: {

@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { File } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -28,9 +29,10 @@ interface Props {
   onClose: () => void;
   invoice: Invoice | null;
   onSave?: () => void;
+  showUsd?: boolean;
 }
 
-export default function InvoicePreview({ visible, onClose, invoice, onSave }: Props) {
+export default function InvoicePreview({ visible, onClose, invoice, onSave, showUsd = true }: Props) {
   const { theme } = useThemeStore();
   const { locale } = useLocaleStore();
   const isRtl = locale === 'ar';
@@ -225,6 +227,19 @@ export default function InvoicePreview({ visible, onClose, invoice, onSave }: Pr
         </View>
 
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          {/* Company Logo & Name */}
+          <View style={[styles.logoContainer, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <Image
+              source={require('../assets/logo.jpeg')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+            <View style={styles.companyNameContainer}>
+              <Text style={[styles.companyName, { color: theme.primary }]}>Golden Trading Company</Text>
+              <Text style={[styles.companyNameAr, { color: theme.textSecondary }]}>شركة الذهبي للتجارة</Text>
+            </View>
+          </View>
+
           {/* Invoice Header Card */}
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             <View style={[styles.invoiceHeader, isRtl && styles.rowReverse]}>
@@ -252,14 +267,16 @@ export default function InvoicePreview({ visible, onClose, invoice, onSave }: Pr
                   {formatDate(invoice.invoiceDate)}
                 </Text>
               </View>
-              <View style={styles.metaItem}>
-                <Text style={[styles.metaLabel, { color: theme.textMuted }]}>
-                  {locale === 'ar' ? 'سعر الصرف' : 'Exchange Rate'}
-                </Text>
-                <Text style={[styles.metaValue, { color: theme.text }]}>
-                  1 USD = {invoice.exchangeRate} SDG
-                </Text>
-              </View>
+              {showUsd && (
+                <View style={styles.metaItem}>
+                  <Text style={[styles.metaLabel, { color: theme.textMuted }]}>
+                    {locale === 'ar' ? 'سعر الصرف' : 'Exchange Rate'}
+                  </Text>
+                  <Text style={[styles.metaValue, { color: theme.text }]}>
+                    1 USD = {invoice.exchangeRate} SDG
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -308,16 +325,18 @@ export default function InvoicePreview({ visible, onClose, invoice, onSave }: Pr
                     {isRtl ? (item.nameAr || item.name) : item.name}
                   </Text>
                   <Text style={[styles.itemMeta, { color: theme.textMuted }]}>
-                    {item.quantity} × {formatCurrency(item.unitPrice, 'USD')}
+                    {item.quantity}{showUsd ? ` × ${formatCurrency(item.unitPrice, 'USD')}` : ''}
                   </Text>
                 </View>
                 <View style={[styles.itemTotal, isRtl && { alignItems: 'flex-start' }]}>
                   <Text style={[styles.itemTotalSdg, { color: theme.success }]}>
                     {formatCurrency(item.totalSdg, 'SDG')}
                   </Text>
-                  <Text style={[styles.itemTotalValue, { color: theme.textMuted }]}>
-                    {formatCurrency(item.total, 'USD')}
-                  </Text>
+                  {showUsd && (
+                    <Text style={[styles.itemTotalValue, { color: theme.textMuted }]}>
+                      {formatCurrency(item.total, 'USD')}
+                    </Text>
+                  )}
                 </View>
               </View>
             ))}
@@ -330,7 +349,7 @@ export default function InvoicePreview({ visible, onClose, invoice, onSave }: Pr
                 {locale === 'ar' ? 'المجموع الفرعي' : 'Subtotal'}
               </Text>
               <Text style={[styles.totalValue, { color: theme.text }]}>
-                {formatCurrency(invoice.subtotal, 'USD')}
+                {showUsd ? formatCurrency(invoice.subtotal, 'USD') : formatCurrency(invoice.subtotal * invoice.exchangeRate, 'SDG')}
               </Text>
             </View>
             
@@ -340,7 +359,7 @@ export default function InvoicePreview({ visible, onClose, invoice, onSave }: Pr
                   {locale === 'ar' ? 'الخصم' : 'Discount'}
                 </Text>
                 <Text style={[styles.totalValue, { color: theme.error }]}>
-                  -{formatCurrency(invoice.discount, 'USD')}
+                  -{showUsd ? formatCurrency(invoice.discount, 'USD') : formatCurrency(invoice.discount * invoice.exchangeRate, 'SDG')}
                 </Text>
               </View>
             )}
@@ -351,7 +370,7 @@ export default function InvoicePreview({ visible, onClose, invoice, onSave }: Pr
                   {locale === 'ar' ? 'الضريبة' : 'Tax'}
                 </Text>
                 <Text style={[styles.totalValue, { color: theme.text }]}>
-                  {formatCurrency(invoice.tax, 'USD')}
+                  {showUsd ? formatCurrency(invoice.tax, 'USD') : formatCurrency(invoice.tax * invoice.exchangeRate, 'SDG')}
                 </Text>
               </View>
             )}
@@ -364,9 +383,11 @@ export default function InvoicePreview({ visible, onClose, invoice, onSave }: Pr
                 <Text style={[styles.grandTotalValue, { color: theme.primary }]}>
                   {formatCurrency(invoice.totalSdg, 'SDG')}
                 </Text>
-                <Text style={[styles.grandTotalSdg, { color: theme.textSecondary }]}>
-                  {formatCurrency(invoice.total, 'USD')}
-                </Text>
+                {showUsd && (
+                  <Text style={[styles.grandTotalSdg, { color: theme.textSecondary }]}>
+                    {formatCurrency(invoice.total, 'USD')}
+                  </Text>
+                )}
               </View>
             </View>
           </View>
@@ -460,6 +481,32 @@ export default function InvoicePreview({ visible, onClose, invoice, onSave }: Pr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 16,
+    gap: 12,
+  },
+  logoImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+  },
+  companyNameContainer: {
+    flex: 1,
+  },
+  companyName: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  companyNameAr: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   header: {
     flexDirection: 'row',

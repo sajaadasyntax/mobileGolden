@@ -345,6 +345,11 @@ export default function CreateSalesInvoiceScreen() {
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             {locale === 'ar' ? 'نوع الفاتورة' : 'Invoice Type'}
           </Text>
+          {items.length > 0 && (
+            <Text style={{ color: theme.warning, fontSize: 12, marginBottom: 8 }}>
+              {locale === 'ar' ? 'امسح الأصناف لتغيير نوع الفاتورة' : 'Clear items to change invoice type'}
+            </Text>
+          )}
           <View style={styles.typeButtons}>
             <TouchableOpacity
               style={[
@@ -352,9 +357,11 @@ export default function CreateSalesInvoiceScreen() {
                 { 
                   backgroundColor: invoiceCategory === 'WHOLESALE' ? theme.primary : theme.backgroundTertiary,
                   borderColor: invoiceCategory === 'WHOLESALE' ? theme.primary : theme.border,
+                  opacity: items.length > 0 && invoiceCategory !== 'WHOLESALE' ? 0.4 : 1,
                 },
               ]}
-              onPress={() => setInvoiceCategory('WHOLESALE')}
+              onPress={() => items.length === 0 && setInvoiceCategory('WHOLESALE')}
+              disabled={items.length > 0 && invoiceCategory !== 'WHOLESALE'}
             >
               <Ionicons 
                 name="business" 
@@ -375,9 +382,11 @@ export default function CreateSalesInvoiceScreen() {
                 { 
                   backgroundColor: invoiceCategory === 'RETAIL' ? theme.primary : theme.backgroundTertiary,
                   borderColor: invoiceCategory === 'RETAIL' ? theme.primary : theme.border,
+                  opacity: items.length > 0 && invoiceCategory !== 'RETAIL' ? 0.4 : 1,
                 },
               ]}
-              onPress={() => setInvoiceCategory('RETAIL')}
+              onPress={() => items.length === 0 && setInvoiceCategory('RETAIL')}
+              disabled={items.length > 0 && invoiceCategory !== 'RETAIL'}
             >
               <Ionicons 
                 name="storefront" 
@@ -666,6 +675,7 @@ export default function CreateSalesInvoiceScreen() {
         onClose={() => setShowPreview(false)}
         invoice={currentInvoice}
         onSave={handleSaveInvoice}
+        showUsd={showUsd}
       />
 
       {/* Shelf Picker Modal */}

@@ -949,7 +949,7 @@ export default function DailyInvoiceScreen() {
             refreshDraft();
           }}
           invoice={lastInvoice}
-          options={{ locale: locale as 'en' | 'ar', includePaymentDetails: true }}
+          showUsd={false}
         />
       )}
     </View>

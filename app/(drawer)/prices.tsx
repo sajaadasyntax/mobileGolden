@@ -13,6 +13,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocaleStore } from '@/stores/locale';
@@ -52,11 +53,26 @@ export default function PricesScreen() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [exchangeRate, setExchangeRate] = useState<number>(600); // Default fallback rate
+  const [exchangeRate, setExchangeRate] = useState<number>(600);
   const [editPrices, setEditPrices] = useState({
     wholesalePriceUsd: '',
     retailPriceUsd: '',
     costPriceUsd: '',
+  });
+
+  // Add Item modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [categories, setCategories] = useState<{ id: string; name: string; nameAr: string }[]>([]);
+  const [units, setUnits] = useState<{ id: string; name: string; symbol: string }[]>([]);
+  const [addingItem, setAddingItem] = useState(false);
+  const [newItem, setNewItem] = useState({
+    nameEn: '',
+    nameAr: '',
+    sku: '',
+    categoryId: '',
+    unitId: '',
+    wholesalePriceUsd: '',
+    retailPriceUsd: '',
   });
 
   const loadItems = async () => {
@@ -162,6 +178,65 @@ export default function PricesScreen() {
       Alert.alert(t('error', locale), error.message || t('operationFailed', locale));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const loadCategoriesAndUnits = async () => {
+    try {
+      const [cats, unitList] = await Promise.all([
+        api.inventory.categories(),
+        api.inventory.units(),
+      ]);
+      setCategories(cats || []);
+      setUnits(unitList || []);
+    } catch (error) {
+      console.warn('Failed to load categories/units:', error);
+    }
+  };
+
+  const handleOpenAddModal = async () => {
+    await loadCategoriesAndUnits();
+    setNewItem({ nameEn: '', nameAr: '', sku: '', categoryId: '', unitId: '', wholesalePriceUsd: '', retailPriceUsd: '' });
+    setShowAddModal(true);
+  };
+
+  const handleCreateItem = async () => {
+    if (!user?.branchId) return;
+    if (!newItem.nameEn.trim() || !newItem.sku.trim() || !newItem.categoryId || !newItem.unitId) {
+      Alert.alert(t('error', locale), locale === 'ar' ? 'يرجى ملء جميع الحقول المطلوبة' : 'Please fill all required fields');
+      return;
+    }
+    const wholesale = parseFloat(newItem.wholesalePriceUsd);
+    const retail = parseFloat(newItem.retailPriceUsd);
+    if (isNaN(wholesale) || wholesale <= 0 || isNaN(retail) || retail <= 0) {
+      Alert.alert(t('error', locale), locale === 'ar' ? 'يرجى إدخال أسعار صحيحة' : 'Please enter valid prices');
+      return;
+    }
+    setAddingItem(true);
+    try {
+      const created = await api.inventory.items.create({
+        nameEn: newItem.nameEn.trim(),
+        nameAr: newItem.nameAr.trim() || newItem.nameEn.trim(),
+        sku: newItem.sku.trim(),
+        categoryId: newItem.categoryId,
+        unitId: newItem.unitId,
+      });
+      await api.inventory.pricePolicies.create({
+        itemId: created.id,
+        branchId: user.branchId,
+        wholesalePriceUsd: wholesale,
+        retailPriceUsd: retail,
+        priceRangeMinUsd: Math.min(wholesale, retail) * 0.9,
+        priceRangeMaxUsd: Math.max(wholesale, retail) * 1.1,
+        effectiveFrom: new Date().toISOString(),
+      });
+      setShowAddModal(false);
+      Alert.alert(t('success', locale), locale === 'ar' ? 'تم إضافة الصنف بنجاح' : 'Item added successfully');
+      await loadItems();
+    } catch (error: any) {
+      Alert.alert(t('error', locale), error.message || t('operationFailed', locale));
+    } finally {
+      setAddingItem(false);
     }
   };
 
@@ -275,6 +350,171 @@ export default function PricesScreen() {
           </View>
         }
       />
+
+      {/* Add Item FAB */}
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: theme.primary }]}
+        onPress={handleOpenAddModal}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
+
+      {/* Add Item Modal */}
+      <Modal visible={showAddModal} transparent animationType="slide">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
+        >
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            <View style={[styles.modalHeader, isRtl && styles.modalHeaderRtl]}>
+              <Text style={[styles.modalTitle, { color: theme.text }, isRtl && styles.textRtl]}>
+                {locale === 'ar' ? 'إضافة صنف جديد' : 'Add New Item'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowAddModal(false)}>
+                <Ionicons name="close" size={24} color={theme.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 500 }}>
+              {/* Name EN */}
+              <View style={styles.priceInputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                  {locale === 'ar' ? 'الاسم (إنجليزي) *' : 'Name (English) *'}
+                </Text>
+                <TextInput
+                  style={[styles.addInput, { color: theme.text, backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}
+                  placeholder="Item name"
+                  placeholderTextColor={theme.inputPlaceholder}
+                  value={newItem.nameEn}
+                  onChangeText={(v) => setNewItem({ ...newItem, nameEn: v })}
+                />
+              </View>
+              {/* Name AR */}
+              <View style={styles.priceInputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                  {locale === 'ar' ? 'الاسم (عربي)' : 'Name (Arabic)'}
+                </Text>
+                <TextInput
+                  style={[styles.addInput, { color: theme.text, backgroundColor: theme.backgroundSecondary, borderColor: theme.border, textAlign: 'right' }]}
+                  placeholder="اسم الصنف"
+                  placeholderTextColor={theme.inputPlaceholder}
+                  value={newItem.nameAr}
+                  onChangeText={(v) => setNewItem({ ...newItem, nameAr: v })}
+                />
+              </View>
+              {/* SKU */}
+              <View style={styles.priceInputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                  {locale === 'ar' ? 'رمز الصنف (SKU) *' : 'SKU *'}
+                </Text>
+                <TextInput
+                  style={[styles.addInput, { color: theme.text, backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}
+                  placeholder="SKU-001"
+                  placeholderTextColor={theme.inputPlaceholder}
+                  value={newItem.sku}
+                  onChangeText={(v) => setNewItem({ ...newItem, sku: v })}
+                  autoCapitalize="characters"
+                />
+              </View>
+              {/* Category */}
+              <View style={styles.priceInputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                  {locale === 'ar' ? 'الفئة *' : 'Category *'}
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {categories.map((cat) => (
+                      <TouchableOpacity
+                        key={cat.id}
+                        style={[styles.chipButton, { backgroundColor: newItem.categoryId === cat.id ? theme.primary : theme.backgroundTertiary }]}
+                        onPress={() => setNewItem({ ...newItem, categoryId: cat.id })}
+                      >
+                        <Text style={{ color: newItem.categoryId === cat.id ? '#fff' : theme.text, fontSize: 13 }}>
+                          {locale === 'ar' ? cat.nameAr || cat.name : cat.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+              {/* Unit */}
+              <View style={styles.priceInputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                  {locale === 'ar' ? 'الوحدة *' : 'Unit *'}
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {units.map((unit) => (
+                      <TouchableOpacity
+                        key={unit.id}
+                        style={[styles.chipButton, { backgroundColor: newItem.unitId === unit.id ? theme.primary : theme.backgroundTertiary }]}
+                        onPress={() => setNewItem({ ...newItem, unitId: unit.id })}
+                      >
+                        <Text style={{ color: newItem.unitId === unit.id ? '#fff' : theme.text, fontSize: 13 }}>
+                          {unit.symbol || unit.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+              {/* Prices */}
+              <View style={styles.priceInputsContainer}>
+                <View style={styles.priceInputGroup}>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                    {t('wholesalePrice', locale)} (USD) *
+                  </Text>
+                  <View style={[styles.priceInputWrapper, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
+                    <Text style={[styles.currencySymbol, { color: theme.success }]}>$</Text>
+                    <TextInput
+                      style={[styles.priceInput, { color: theme.text }]}
+                      placeholder="0.00"
+                      placeholderTextColor={theme.inputPlaceholder}
+                      value={newItem.wholesalePriceUsd}
+                      onChangeText={(v) => setNewItem({ ...newItem, wholesalePriceUsd: v })}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                </View>
+                <View style={styles.priceInputGroup}>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                    {t('retailPrice', locale)} (USD) *
+                  </Text>
+                  <View style={[styles.priceInputWrapper, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
+                    <Text style={[styles.currencySymbol, { color: theme.success }]}>$</Text>
+                    <TextInput
+                      style={[styles.priceInput, { color: theme.text }]}
+                      placeholder="0.00"
+                      placeholderTextColor={theme.inputPlaceholder}
+                      value={newItem.retailPriceUsd}
+                      onChangeText={(v) => setNewItem({ ...newItem, retailPriceUsd: v })}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
+            <View style={[styles.modalButtons, isRtl && styles.modalButtonsRtl, { marginTop: 16 }]}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelModalButton, { backgroundColor: theme.backgroundTertiary }]}
+                onPress={() => setShowAddModal(false)}
+              >
+                <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>{t('cancel', locale)}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmModalButton, { backgroundColor: theme.primary }]}
+                onPress={handleCreateItem}
+                disabled={addingItem}
+              >
+                {addingItem ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.confirmButtonText}>{locale === 'ar' ? 'إضافة' : 'Add Item'}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Edit Price Modal */}
       <Modal visible={showEditModal} transparent animationType="slide">
@@ -591,5 +831,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  addInput: {
+    height: 48,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    borderWidth: 1,
+  },
+  chipButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
 });

@@ -248,6 +248,13 @@ function DrawerLayout() {
         })}
       />
       <Drawer.Screen
+        name="customer-detail"
+        options={({ route }) => ({ 
+          title: locale === 'ar' ? 'تفاصيل العميل' : 'Customer Details',
+          drawerItemStyle: { display: 'none' },
+        })}
+      />
+      <Drawer.Screen
         name="product-stock-details"
         options={({ route }) => ({ 
           title: locale === 'ar' ? 'تفاصيل مخزون المنتج' : 'Product Stock Details',

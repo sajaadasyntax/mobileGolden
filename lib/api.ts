@@ -475,6 +475,22 @@ export const api = {
     
     units: () => 
       trpcQuery<any>('inventory.units.list'),
+
+    items: {
+      list: (page = 1, pageSize = 50) =>
+        trpcQuery<any>('inventory.items.list', { page, pageSize, isActive: true }),
+      create: (data: {
+        sku: string;
+        nameEn: string;
+        nameAr: string;
+        description?: string;
+        categoryId: string;
+        unitId: string;
+        isConsignment?: boolean;
+        minStockLevel?: number;
+        maxStockLevel?: number;
+      }) => trpcMutation<any>('inventory.items.create', data),
+    },
     // Price policies
     pricePolicies: {
       list: (branchId: string, itemId?: string) => 
@@ -557,6 +573,9 @@ export const api = {
     customers: {
       list: (page = 1, pageSize = 50) => 
         trpcQuery<any>('sales.customers.list', { page, pageSize, isActive: true }),
+      
+      getById: (id: string) => 
+        trpcQuery<any>('sales.customers.getById', { id }),
       
       create: (data: {
         name: string;

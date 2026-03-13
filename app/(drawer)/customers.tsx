@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { t } from '@/lib/i18n';
@@ -30,6 +31,7 @@ interface Customer {
 }
 
 export default function CustomersScreen() {
+  const router = useRouter();
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -112,7 +114,10 @@ export default function CustomersScreen() {
   });
 
   const renderCustomer = ({ item }: { item: Customer }) => (
-    <TouchableOpacity style={[styles.customerCard, { backgroundColor: theme.card }, isRtl && styles.customerCardRtl]}>
+    <TouchableOpacity
+      style={[styles.customerCard, { backgroundColor: theme.card }, isRtl && styles.customerCardRtl]}
+      onPress={() => router.push({ pathname: '/(drawer)/customer-detail', params: { id: item.id } })}
+    >
       <View style={[styles.customerIcon, { backgroundColor: '#8b5cf620' }]}>
         <Ionicons name="person" size={24} color="#8b5cf6" />
       </View>

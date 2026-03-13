@@ -12,6 +12,7 @@ import {
   Modal,
   Image,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -785,8 +786,12 @@ const styles = StyleSheet.create({
     right: 20,
     zIndex: 10,
   },
+  receiptPage: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   receiptFullImage: {
-    width: '95%',
-    height: '80%',
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height * 0.8,
   },
 });
