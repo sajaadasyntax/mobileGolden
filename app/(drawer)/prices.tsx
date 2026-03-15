@@ -232,9 +232,17 @@ export default function PricesScreen() {
   };
 
   const handleCreateItem = async () => {
-    if (!user?.branchId) return;
+    if (!user?.branchId) {
+      Alert.alert(t('error', locale), locale === 'ar' ? 'يجب تعيين فرع للمستخدم' : 'User must be assigned to a branch');
+      return;
+    }
     if (!newItem.nameEn.trim() || !newItem.sku.trim() || !newItem.categoryId || !newItem.unitId) {
       Alert.alert(t('error', locale), locale === 'ar' ? 'يرجى ملء جميع الحقول المطلوبة' : 'Please fill all required fields');
+      return;
+    }
+    const nameAr = newItem.nameAr.trim() || newItem.nameEn.trim();
+    if (nameAr.length < 2) {
+      Alert.alert(t('error', locale), locale === 'ar' ? 'الاسم يجب أن يكون حرفين على الأقل' : 'Name must be at least 2 characters');
       return;
     }
     const wholesale = parseFloat(newItem.wholesalePriceUsd);
@@ -247,28 +255,31 @@ export default function PricesScreen() {
     try {
       const created = await api.inventory.items.create({
         nameEn: newItem.nameEn.trim(),
-        nameAr: newItem.nameAr.trim() || newItem.nameEn.trim(),
+        nameAr,
         sku: newItem.sku.trim(),
         categoryId: newItem.categoryId,
         unitId: newItem.unitId,
       });
-      const locationOpts =
-        locationMode === 'warehouse' && selectedWarehouseId
-          ? { warehouseId: selectedWarehouseId }
-          : locationMode === 'shelf' && selectedShelfId
-          ? { shelfId: selectedShelfId }
-          : {};
-
-      await api.inventory.pricePolicies.create({
-        itemId: created.id,
+      const itemId = created?.id;
+      if (!itemId) {
+        throw new Error('Invalid response from server');
+      }
+      const pricePayload: Record<string, unknown> = {
+        itemId,
         branchId: user.branchId,
-        ...locationOpts,
         wholesalePriceUsd: wholesale,
         retailPriceUsd: retail,
         priceRangeMinUsd: Math.min(wholesale, retail) * 0.9,
         priceRangeMaxUsd: Math.max(wholesale, retail) * 1.1,
         effectiveFrom: new Date().toISOString(),
-      });
+      };
+      if (locationMode === 'warehouse' && selectedWarehouseId?.trim()) {
+        pricePayload.warehouseId = selectedWarehouseId.trim();
+      } else if (locationMode === 'shelf' && selectedShelfId?.trim()) {
+        pricePayload.shelfId = selectedShelfId.trim();
+      }
+
+      await api.inventory.pricePolicies.create(pricePayload as any);
       setShowAddModal(false);
       Alert.alert(t('success', locale), locale === 'ar' ? 'تم إضافة الصنف بنجاح' : 'Item added successfully');
       await loadItems();

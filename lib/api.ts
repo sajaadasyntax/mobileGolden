@@ -164,12 +164,12 @@ async function trpcQuery<T>(endpoint: string, params: object = {}): Promise<T> {
   
   // Check for tRPC error format
   if (result.error) {
-    const errorMessage = result.error.message || result.error.data?.message || 'Request failed';
-    // Handle auth errors - clear token and redirect
-    if (response.status === 401 || result.error.data?.code === 'UNAUTHORIZED') {
+    const err = result.error;
+    const msg = err.message || err.data?.message || (typeof err.data?.zodError === 'string' ? err.data.zodError : null) || 'Request failed';
+    if (response.status === 401 || err.data?.code === 'UNAUTHORIZED') {
       await removeToken();
     }
-    throw new Error(errorMessage);
+    throw new Error(msg);
   }
   
   if (!response.ok) {
@@ -199,12 +199,12 @@ async function trpcMutation<T>(endpoint: string, data: object): Promise<T> {
   
   // Check for tRPC error format
   if (result.error) {
-    const errorMessage = result.error.message || result.error.data?.message || 'Request failed';
-    // Handle auth errors - clear token and redirect
-    if (response.status === 401 || result.error.data?.code === 'UNAUTHORIZED') {
+    const err = result.error;
+    const msg = err.message || err.data?.message || (typeof err.data?.zodError === 'string' ? err.data.zodError : null) || 'Request failed';
+    if (response.status === 401 || err.data?.code === 'UNAUTHORIZED') {
       await removeToken();
     }
-    throw new Error(errorMessage);
+    throw new Error(msg);
   }
   
   if (!response.ok) {
