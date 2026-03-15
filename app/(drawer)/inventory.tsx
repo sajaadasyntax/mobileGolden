@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import EditItemModal from '@/components/EditItemModal';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useLocaleStore } from '@/stores/locale';
@@ -45,7 +44,6 @@ export default function InventoryScreen() {
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [shelves, setShelves] = useState<any[]>([]);
-  const [editItemId, setEditItemId] = useState<string | null>(null);
   const isRtl = locale === 'ar';
 
   useEffect(() => {
@@ -283,17 +281,6 @@ export default function InventoryScreen() {
             </Text>
           )}
         </View>
-        {isAdmin && (
-          <TouchableOpacity
-            onPress={(e) => {
-              e?.stopPropagation?.();
-              setEditItemId(item.id);
-            }}
-            style={{ padding: 8 }}
-          >
-            <Ionicons name="create-outline" size={20} color={theme.primary} />
-          </TouchableOpacity>
-        )}
         <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} style={styles.chevron} />
       </TouchableOpacity>
     );
@@ -475,18 +462,6 @@ export default function InventoryScreen() {
           </View>
         }
       />
-
-      {editItemId && (
-        <EditItemModal
-          visible={!!editItemId}
-          itemId={editItemId}
-          onClose={() => setEditItemId(null)}
-          onSuccess={() => {
-            setEditItemId(null);
-            loadInventory();
-          }}
-        />
-      )}
     </View>
   );
 }
