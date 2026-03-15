@@ -178,25 +178,41 @@ export default function PricesScreen() {
 
     setSaving(true);
     try {
-      const locationOpts =
-        locationMode === 'warehouse' && selectedWarehouseId
-          ? { warehouseId: selectedWarehouseId }
-          : locationMode === 'shelf' && selectedShelfId
-          ? { shelfId: selectedShelfId }
-          : {};
+      const whId = locationMode === 'warehouse' && selectedWarehouseId ? selectedWarehouseId : undefined;
+      const shId = locationMode === 'shelf' && selectedShelfId ? selectedShelfId : undefined;
 
-      await api.inventory.pricePolicies.create({
-        itemId: selectedItem.id,
-        branchId: user.branchId,
-        ...locationOpts,
-        wholesalePriceUsd: wholesale,
-        retailPriceUsd: retail,
-        priceRangeMinUsd: Math.min(wholesale, retail) * 0.9,
-        priceRangeMaxUsd: Math.max(wholesale, retail) * 1.1,
-        effectiveFrom: new Date().toISOString(),
-      });
+      // Try to find existing policy to update instead of creating a duplicate
+      let existingPolicy: any = null;
+      try {
+        existingPolicy = await api.inventory.pricePolicies.getForItem(
+          selectedItem.id, user.branchId, whId, shId
+        );
+      } catch { /* no existing policy */ }
+
+      if (existingPolicy?.id) {
+        await api.inventory.pricePolicies.update({
+          id: existingPolicy.id,
+          wholesalePriceUsd: wholesale,
+          retailPriceUsd: retail,
+          priceRangeMinUsd: Math.min(wholesale, retail) * 0.9,
+          priceRangeMaxUsd: Math.max(wholesale, retail) * 1.1,
+        });
+      } else {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        await api.inventory.pricePolicies.create({
+          itemId: selectedItem.id,
+          branchId: user.branchId,
+          ...(whId ? { warehouseId: whId } : {}),
+          ...(shId ? { shelfId: shId } : {}),
+          wholesalePriceUsd: wholesale,
+          retailPriceUsd: retail,
+          priceRangeMinUsd: Math.min(wholesale, retail) * 0.9,
+          priceRangeMaxUsd: Math.max(wholesale, retail) * 1.1,
+          effectiveFrom: today.toISOString(),
+        });
+      }
       
-      // Update local state
       setItems(items.map(item => 
         item.id === selectedItem.id 
           ? { ...item, wholesalePriceUsd: wholesale, retailPriceUsd: retail }
@@ -253,33 +269,50 @@ export default function PricesScreen() {
     }
     setAddingItem(true);
     try {
-      const created = await api.inventory.items.create({
-        nameEn: newItem.nameEn.trim(),
-        nameAr,
-        sku: newItem.sku.trim(),
-        categoryId: newItem.categoryId,
-        unitId: newItem.unitId,
-      });
-      const itemId = created?.id;
-      if (!itemId) {
-        throw new Error('Invalid response from server');
+      let itemId: string;
+
+      // Try to create item; if SKU already exists, find and reuse it
+      try {
+        const created = await api.inventory.items.create({
+          nameEn: newItem.nameEn.trim(),
+          nameAr,
+          sku: newItem.sku.trim(),
+          categoryId: newItem.categoryId,
+          unitId: newItem.unitId,
+        });
+        itemId = created?.id;
+      } catch (createErr: any) {
+        if (createErr.message?.includes('SKU already exists')) {
+          const allItems = await api.inventory.items.list();
+          const existing = (allItems?.data || allItems || []).find(
+            (it: any) => it.sku === newItem.sku.trim()
+          );
+          if (!existing?.id) throw createErr;
+          itemId = existing.id;
+        } else {
+          throw createErr;
+        }
       }
-      const pricePayload: Record<string, unknown> = {
+
+      if (!itemId) {
+        throw new Error(locale === 'ar' ? 'فشل في إنشاء الصنف' : 'Failed to create item');
+      }
+
+      // Use start of today for effectiveFrom to avoid client/server clock skew
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      await api.inventory.pricePolicies.create({
         itemId,
         branchId: user.branchId,
+        ...(locationMode === 'warehouse' && selectedWarehouseId ? { warehouseId: selectedWarehouseId } : {}),
+        ...(locationMode === 'shelf' && selectedShelfId ? { shelfId: selectedShelfId } : {}),
         wholesalePriceUsd: wholesale,
         retailPriceUsd: retail,
         priceRangeMinUsd: Math.min(wholesale, retail) * 0.9,
         priceRangeMaxUsd: Math.max(wholesale, retail) * 1.1,
-        effectiveFrom: new Date().toISOString(),
-      };
-      if (locationMode === 'warehouse' && selectedWarehouseId?.trim()) {
-        pricePayload.warehouseId = selectedWarehouseId.trim();
-      } else if (locationMode === 'shelf' && selectedShelfId?.trim()) {
-        pricePayload.shelfId = selectedShelfId.trim();
-      }
-
-      await api.inventory.pricePolicies.create(pricePayload as any);
+        effectiveFrom: today.toISOString(),
+      });
       setShowAddModal(false);
       Alert.alert(t('success', locale), locale === 'ar' ? 'تم إضافة الصنف بنجاح' : 'Item added successfully');
       await loadItems();

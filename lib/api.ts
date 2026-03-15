@@ -160,12 +160,17 @@ async function trpcQuery<T>(endpoint: string, params: object = {}): Promise<T> {
     },
   });
 
-  const result = await response.json();
+  let result: any;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(`Server error (${response.status})`);
+  }
   
   // Check for tRPC error format
   if (result.error) {
     const err = result.error;
-    const msg = err.message || err.data?.message || (typeof err.data?.zodError === 'string' ? err.data.zodError : null) || 'Request failed';
+    const msg = err.message || err.data?.message || (typeof err.data?.zodError === 'string' ? err.data.zodError : null) || `Request failed (${response.status})`;
     if (response.status === 401 || err.data?.code === 'UNAUTHORIZED') {
       await removeToken();
     }
@@ -173,11 +178,11 @@ async function trpcQuery<T>(endpoint: string, params: object = {}): Promise<T> {
   }
   
   if (!response.ok) {
-    throw new Error(result.message || 'Request failed');
+    throw new Error(result.message || `Request failed (${response.status})`);
   }
   
-  // Extract data from tRPC response format
-  return result.result?.data?.json || result.result?.data || result;
+  // Extract data from tRPC/superjson response format
+  return result.result?.data?.json ?? result.result?.data ?? result;
 }
 
 /**
@@ -195,12 +200,17 @@ async function trpcMutation<T>(endpoint: string, data: object): Promise<T> {
     body: JSON.stringify({ json: data }),
   });
 
-  const result = await response.json();
+  let result: any;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(`Server error (${response.status})`);
+  }
   
   // Check for tRPC error format
   if (result.error) {
     const err = result.error;
-    const msg = err.message || err.data?.message || (typeof err.data?.zodError === 'string' ? err.data.zodError : null) || 'Request failed';
+    const msg = err.message || err.data?.message || (typeof err.data?.zodError === 'string' ? err.data.zodError : null) || `Request failed (${response.status})`;
     if (response.status === 401 || err.data?.code === 'UNAUTHORIZED') {
       await removeToken();
     }
@@ -208,11 +218,11 @@ async function trpcMutation<T>(endpoint: string, data: object): Promise<T> {
   }
   
   if (!response.ok) {
-    throw new Error(result.message || 'Request failed');
+    throw new Error(result.message || `Request failed (${response.status})`);
   }
   
-  // Extract data from tRPC response format
-  return result.result?.data?.json || result.result?.data || result;
+  // Extract data from tRPC/superjson response format
+  return result.result?.data?.json ?? result.result?.data ?? result;
 }
 
 // Upload receipt image
@@ -410,41 +420,43 @@ export const api = {
   inventory: {
     itemsWithPrices: async (branchId: string, page = 1, pageSize = 50, options?: { warehouseId?: string; shelfId?: string }) => {
       const token = await getToken();
-      const priceParams = { itemId: '', branchId, ...(options?.warehouseId && { warehouseId: options.warehouseId }), ...(options?.shelfId && { shelfId: options.shelfId }) };
-      // Get items first
+      const authHeaders = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+
       const itemsResponse = await fetch(
         `${API_URL}/trpc/inventory.items.list?input=${encodeURIComponent(JSON.stringify({ json: { page, pageSize, isActive: true } }))}`,
-        {
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
+        { headers: authHeaders }
       );
       const itemsResult = await itemsResponse.json();
+      if (itemsResult.error) throw new Error(itemsResult.error.message || 'Failed to load items');
       const items = itemsResult.result?.data?.json?.data || itemsResult.result?.data?.data || [];
       
-      // Get price policies for each item (resolution: shelf > warehouse > branch)
+      const priceBaseParams: Record<string, string> = { branchId };
+      if (options?.warehouseId) priceBaseParams.warehouseId = options.warehouseId;
+      if (options?.shelfId) priceBaseParams.shelfId = options.shelfId;
+
       const itemsWithPrices = await Promise.all(
         items.map(async (item: any) => {
           try {
             const priceResponse = await fetch(
-              `${API_URL}/trpc/inventory.pricePolicies.getForItem?input=${encodeURIComponent(JSON.stringify({ json: { ...priceParams, itemId: item.id } }))}`,
-              {
-                headers: {
-                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-              }
+              `${API_URL}/trpc/inventory.pricePolicies.getForItem?input=${encodeURIComponent(JSON.stringify({ json: { ...priceBaseParams, itemId: item.id } }))}`,
+              { headers: authHeaders }
             );
             const priceResult = await priceResponse.json();
-            const policy = priceResult.result?.data?.json || priceResult.result?.data || null;
+            const policy = priceResult.result?.data?.json ?? priceResult.result?.data ?? null;
+
+            const parsePrice = (val: any): number => {
+              if (val == null) return 0;
+              const n = Number(val);
+              return isNaN(n) ? 0 : n;
+            };
             
             return {
               id: item.id,
               name: item.nameEn,
               nameAr: item.nameAr,
               sku: item.sku,
-              wholesalePrice: policy ? Number(policy.wholesalePriceUsd) : 0,
-              retailPrice: policy ? Number(policy.retailPriceUsd) : 0,
+              wholesalePrice: policy ? parsePrice(policy.wholesalePriceUsd) : 0,
+              retailPrice: policy ? parsePrice(policy.retailPriceUsd) : 0,
               unit: item.unit?.symbol || item.unit?.name,
             };
           } catch {
@@ -532,6 +544,17 @@ export const api = {
         effectiveFrom: string;
         effectiveTo?: string;
       }) => trpcMutation<any>('inventory.pricePolicies.create', data),
+
+      update: (data: {
+        id: string;
+        warehouseId?: string | null;
+        shelfId?: string | null;
+        wholesalePriceUsd?: number;
+        retailPriceUsd?: number;
+        priceRangeMinUsd?: number;
+        priceRangeMaxUsd?: number;
+        effectiveTo?: string | null;
+      }) => trpcMutation<any>('inventory.pricePolicies.update', data),
     },
     // Stock management
     stockManagement: {
