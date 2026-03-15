@@ -141,7 +141,7 @@ export default function DailyInvoiceScreen() {
 
       const stockResult = await api.inventory.stockManagement.getShelfStock(shelfToUse, { pageSize: 100 });
       const stockData = stockResult?.data || stockResult || [];
-      const itemsWithPrices = await api.inventory.itemsWithPrices(user.branchId);
+      const itemsWithPrices = await api.inventory.itemsWithPrices(user.branchId, 1, 50, { shelfId: shelfToUse });
 
       const stockMap = new Map<string, { totalStock: number; batches: any[] }>();
       for (const stockItem of stockData) {
