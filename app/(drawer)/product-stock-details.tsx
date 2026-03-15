@@ -7,6 +7,11 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -53,6 +58,12 @@ export default function ProductStockDetailsScreen() {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [itemInfo, setItemInfo] = useState<any>(null);
   const [totalStock, setTotalStock] = useState(0);
+  const [showDivideModal, setShowDivideModal] = useState(false);
+  const [divideBatch, setDivideBatch] = useState<Batch | null>(null);
+  const [divideTargetUnitId, setDivideTargetUnitId] = useState('');
+  const [divideQty, setDivideQty] = useState('');
+  const [dividing, setDividing] = useState(false);
+  const [units, setUnits] = useState<{ id: string; name: string; symbol: string }[]>([]);
 
   useEffect(() => {
     if (itemId) {
@@ -64,46 +75,52 @@ export default function ProductStockDetailsScreen() {
     try {
       setLoading(true);
 
-      // Load item info
-      const itemResult = await api.inventory.items();
-      const items = itemResult?.result?.data?.data || itemResult?.data || [];
-      const item = items.find((i: any) => i.id === itemId);
+      // Load item info by ID (real data from backend)
+      const item = await api.inventory.items.getById(itemId);
       setItemInfo(item);
 
-      // Load batches
+      // Load batches (real stock data from backend)
       const batchesResult = await api.inventory.stockManagement.getBatches(itemId, {
         warehouseId,
         shelfId,
         includeEmpty: false,
       });
-      const batchesData = (batchesResult || []) as Batch[];
-      
+      // Handle both array and { data: [...] } response shapes
+      const batchesRaw = Array.isArray(batchesResult) ? batchesResult : (batchesResult as any)?.data;
+      const batchesData = (Array.isArray(batchesRaw) ? batchesRaw : []) as Batch[];
+
       // Sort by expiry date (FIFO)
-      const sortedBatches = batchesData.sort((a, b) => {
+      const sortedBatches = [...batchesData].sort((a, b) => {
         if (!a.expiryDate) return 1;
         if (!b.expiryDate) return -1;
         return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
       });
-      
+
       setBatches(sortedBatches);
-      
-      // Calculate total stock
-      const total = sortedBatches.reduce((sum, b) => sum + Number(b.qtyRemaining), 0);
+
+      // Calculate total stock from real batch data
+      const total = sortedBatches.reduce((sum, b) => sum + Number(b.qtyRemaining || 0), 0);
       setTotalStock(total);
 
-      // Load recent movements
+      // Load recent movements (real movement data from backend)
       try {
         const movementsResult = await api.inventory.stockManagement.getMovements({
           itemId,
           pageSize: 20,
         });
-        const movementsData = movementsResult?.data || movementsResult || [];
-        setMovements(movementsData.slice(0, 10)); // Show last 10 movements
+        const movementsRaw = (movementsResult as any)?.data ?? movementsResult;
+        const movementsData = Array.isArray(movementsRaw) ? movementsRaw : [];
+        setMovements(movementsData.slice(0, 10));
       } catch (error) {
         console.warn('Failed to load movements:', error);
+        setMovements([]);
       }
     } catch (error) {
       console.error('Failed to load stock details:', error);
+      setItemInfo(null);
+      setBatches([]);
+      setMovements([]);
+      setTotalStock(0);
     } finally {
       setLoading(false);
     }
@@ -165,6 +182,17 @@ export default function ProductStockDetailsScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
+
+  if (!itemInfo) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <Ionicons name="alert-circle-outline" size={48} color={theme.textSecondary} />
+        <Text style={{ marginTop: 12, fontSize: 16, color: theme.textSecondary }}>
+          {locale === 'ar' ? 'المنتج غير موجود' : 'Item not found'}
+        </Text>
       </View>
     );
   }
@@ -295,11 +323,95 @@ export default function ProductStockDetailsScreen() {
                     </View>
                   )}
                 </View>
+                {itemInfo?.unit?.id && (
+                  <TouchableOpacity
+                    style={[styles.divideBtn, { backgroundColor: theme.primary + '20' }]}
+                    onPress={async () => {
+                      const unitList = await api.inventory.units.list();
+                      setUnits(unitList || []);
+                      setDivideBatch(batch);
+                      setDivideTargetUnitId('');
+                      setDivideQty('');
+                      setShowDivideModal(true);
+                    }}
+                  >
+                    <Ionicons name="git-branch-outline" size={18} color={theme.primary} />
+                    <Text style={[styles.divideBtnText, { color: theme.primary }]}>{locale === 'ar' ? 'تقسيم' : 'Divide'}</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             );
           })
         )}
       </View>
+
+      {/* Divide Batch Modal */}
+      <Modal visible={showDivideModal} transparent animationType="slide">
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={[styles.divideModal, { backgroundColor: theme.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>{locale === 'ar' ? 'تقسيم الدفعة' : 'Divide Batch'}</Text>
+              <TouchableOpacity onPress={() => setShowDivideModal(false)}>
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>{locale === 'ar' ? 'إلى وحدة' : 'Target Unit'}</Text>
+              {units.filter((u) => u.id !== itemInfo?.unit?.id).map((u) => (
+                <TouchableOpacity
+                  key={u.id}
+                  onPress={() => setDivideTargetUnitId(u.id)}
+                  style={[styles.optionRow, { backgroundColor: divideTargetUnitId === u.id ? theme.primary + '30' : theme.input }]}
+                >
+                  <Text style={{ color: divideTargetUnitId === u.id ? theme.primary : theme.text }}>{u.name} ({u.symbol})</Text>
+                  {divideTargetUnitId === u.id && <Ionicons name="checkmark-circle" size={20} color={theme.primary} />}
+                </TouchableOpacity>
+              ))}
+              <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 16 }]}>{locale === 'ar' ? 'الكمية بالوحدة المستهدفة' : 'Quantity in target unit'}</Text>
+              <TextInput
+                style={[styles.textInput, { backgroundColor: theme.input, borderColor: theme.inputBorder, color: theme.text }]}
+                value={divideQty}
+                onChangeText={setDivideQty}
+                placeholder="0"
+                keyboardType="decimal-pad"
+                placeholderTextColor={theme.inputPlaceholder}
+              />
+              <TouchableOpacity
+                style={[styles.submitBtn, { backgroundColor: theme.primary }, dividing && { opacity: 0.6 }]}
+                onPress={async () => {
+                  if (!divideBatch || !divideTargetUnitId || !divideQty.trim()) {
+                    Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', locale === 'ar' ? 'يرجى اختيار الوحدة وإدخال الكمية' : 'Please select unit and enter quantity');
+                    return;
+                  }
+                  const qty = parseFloat(divideQty);
+                  if (isNaN(qty) || qty <= 0) {
+                    Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', locale === 'ar' ? 'كمية غير صحيحة' : 'Invalid quantity');
+                    return;
+                  }
+                  setDividing(true);
+                  try {
+                    await api.inventory.stockManagement.divideBatch({
+                      batchId: divideBatch.id,
+                      targetUnitId: divideTargetUnitId,
+                      quantityInTargetUnit: qty,
+                    });
+                    setShowDivideModal(false);
+                    loadStockDetails();
+                    Alert.alert(locale === 'ar' ? 'نجح' : 'Success', locale === 'ar' ? 'تم التقسيم بنجاح' : 'Batch divided successfully');
+                  } catch (e: any) {
+                    Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', e?.message || 'Failed');
+                  } finally {
+                    setDividing(false);
+                  }
+                }}
+                disabled={dividing}
+              >
+                {dividing ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>{locale === 'ar' ? 'تقسيم' : 'Divide'}</Text>}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Recent Movements Section */}
       {movements.length > 0 && (
@@ -492,5 +604,79 @@ const styles = StyleSheet.create({
   },
   movementDate: {
     fontSize: 12,
+  },
+  divideBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 12,
+    alignSelf: 'flex-start',
+  },
+  divideBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  divideModal: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 20,
+    overflow: 'hidden',
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  modalBody: {
+    padding: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 16,
+  },
+  submitBtn: {
+    marginTop: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

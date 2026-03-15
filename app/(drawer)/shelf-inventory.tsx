@@ -145,7 +145,7 @@ export default function ShelfInventoryScreen() {
       console.error('Failed to load shelf inventory:', error);
       // Try fallback to items list if stock API fails
       try {
-        const itemsResult = await api.inventory.items();
+        const itemsResult = await api.inventory.items.list();
         const allItems = itemsResult?.data || itemsResult || [];
         
         const itemsWithBatches: InventoryItem[] = allItems.map((item: any) => ({

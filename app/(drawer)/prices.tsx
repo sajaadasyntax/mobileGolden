@@ -41,7 +41,7 @@ export default function PricesScreen() {
   const isRtl = locale === 'ar';
 
   useEffect(() => {
-    if (user && !['ADMIN', 'MANAGER'].includes(user.role)) {
+    if (user && !['ADMIN', 'MANAGER', 'PROCUREMENT'].includes(user.role)) {
       router.replace('/(drawer)/dashboard');
     }
   }, [user]);
@@ -54,6 +54,11 @@ export default function PricesScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exchangeRate, setExchangeRate] = useState<number>(600);
+  const [locationMode, setLocationMode] = useState<'branch' | 'warehouse' | 'shelf'>('branch');
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('');
+  const [selectedShelfId, setSelectedShelfId] = useState<string>('');
+  const [warehouses, setWarehouses] = useState<{ id: string; name: string; nameAr: string }[]>([]);
+  const [shelves, setShelves] = useState<{ id: string; name: string; nameAr: string }[]>([]);
   const [editPrices, setEditPrices] = useState({
     wholesalePriceUsd: '',
     retailPriceUsd: '',
@@ -78,7 +83,7 @@ export default function PricesScreen() {
   const loadItems = async () => {
     try {
       if (!user?.branchId) return;
-      
+
       // Get exchange rate from day cycle
       try {
         const dayCycle = await api.dayCycle.getCurrent(user.branchId);
@@ -88,9 +93,14 @@ export default function PricesScreen() {
       } catch (error) {
         console.warn('Failed to load exchange rate, using default:', error);
       }
-      
-      // Get items with their prices
-      const itemsWithPrices = await api.inventory.itemsWithPrices(user.branchId);
+
+      const locationOpts = locationMode === 'warehouse' && selectedWarehouseId
+        ? { warehouseId: selectedWarehouseId }
+        : locationMode === 'shelf' && selectedShelfId
+        ? { shelfId: selectedShelfId }
+        : undefined;
+
+      const itemsWithPrices = await api.inventory.itemsWithPrices(user.branchId, 1, 50, locationOpts);
       setItems(itemsWithPrices.map((item: any) => ({
         id: item.id,
         sku: item.sku || 'N/A',
@@ -109,18 +119,32 @@ export default function PricesScreen() {
   };
 
   useEffect(() => {
+    const loadWarehousesAndShelves = async () => {
+      try {
+        const [wh, sh] = await Promise.all([
+          api.inventory.warehouses(),
+          api.inventory.shelves(),
+        ]);
+        setWarehouses(Array.isArray(wh) ? wh : []);
+        setShelves(Array.isArray(sh) ? sh : []);
+        if (Array.isArray(wh) && wh.length > 0 && !selectedWarehouseId) setSelectedWarehouseId(wh[0].id);
+        if (Array.isArray(sh) && sh.length > 0 && !selectedShelfId) setSelectedShelfId(sh[0].id);
+      } catch (e) {
+        console.warn('Failed to load warehouses/shelves:', e);
+      }
+    };
+    loadWarehousesAndShelves();
+  }, []);
+
+  useEffect(() => {
     loadItems();
-  }, [user?.branchId]);
+  }, [user?.branchId, locationMode, selectedWarehouseId, selectedShelfId]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await loadItems();
     setRefreshing(false);
   };
-
-  useEffect(() => {
-    loadItems();
-  }, [user?.branchId]);
 
   const filteredItems = items.filter((item) => {
     const searchLower = search.toLowerCase();
@@ -154,10 +178,17 @@ export default function PricesScreen() {
 
     setSaving(true);
     try {
-      // Create or update price policy
+      const locationOpts =
+        locationMode === 'warehouse' && selectedWarehouseId
+          ? { warehouseId: selectedWarehouseId }
+          : locationMode === 'shelf' && selectedShelfId
+          ? { shelfId: selectedShelfId }
+          : {};
+
       await api.inventory.pricePolicies.create({
         itemId: selectedItem.id,
         branchId: user.branchId,
+        ...locationOpts,
         wholesalePriceUsd: wholesale,
         retailPriceUsd: retail,
         priceRangeMinUsd: Math.min(wholesale, retail) * 0.9,
@@ -184,8 +215,8 @@ export default function PricesScreen() {
   const loadCategoriesAndUnits = async () => {
     try {
       const [cats, unitList] = await Promise.all([
-        api.inventory.categories(),
-        api.inventory.units(),
+        api.inventory.categories.list(),
+        api.inventory.units.list(),
       ]);
       setCategories(cats || []);
       setUnits(unitList || []);
@@ -221,9 +252,17 @@ export default function PricesScreen() {
         categoryId: newItem.categoryId,
         unitId: newItem.unitId,
       });
+      const locationOpts =
+        locationMode === 'warehouse' && selectedWarehouseId
+          ? { warehouseId: selectedWarehouseId }
+          : locationMode === 'shelf' && selectedShelfId
+          ? { shelfId: selectedShelfId }
+          : {};
+
       await api.inventory.pricePolicies.create({
         itemId: created.id,
         branchId: user.branchId,
+        ...locationOpts,
         wholesalePriceUsd: wholesale,
         retailPriceUsd: retail,
         priceRangeMinUsd: Math.min(wholesale, retail) * 0.9,
@@ -302,6 +341,55 @@ export default function PricesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Location selector for per-location pricing */}
+      <View style={[styles.locationSection, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <Text style={[styles.locationLabel, { color: theme.textSecondary }]}>
+          {locale === 'ar' ? 'الموقع' : 'Location'}
+        </Text>
+        <View style={styles.locationRow}>
+          {(['branch', 'warehouse', 'shelf'] as const).map((mode) => (
+            <TouchableOpacity
+              key={mode}
+              style={[
+                styles.locationChip,
+                { backgroundColor: locationMode === mode ? theme.primary : theme.input, borderColor: theme.inputBorder },
+              ]}
+              onPress={() => setLocationMode(mode)}
+            >
+              <Text style={{ color: locationMode === mode ? '#fff' : theme.text, fontWeight: '600', fontSize: 13 }}>
+                {mode === 'branch' ? (locale === 'ar' ? 'الفرع' : 'Branch') : mode === 'warehouse' ? (locale === 'ar' ? 'مخزن' : 'Warehouse') : (locale === 'ar' ? 'رف' : 'Shelf')}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {locationMode === 'warehouse' && warehouses.length > 0 && (
+          <View style={styles.locationPicker}>
+            {warehouses.map((w) => (
+              <TouchableOpacity
+                key={w.id}
+                style={[styles.pickerChip, { backgroundColor: selectedWarehouseId === w.id ? theme.primary + '30' : theme.input }]}
+                onPress={() => setSelectedWarehouseId(w.id)}
+              >
+                <Text style={{ color: selectedWarehouseId === w.id ? theme.primary : theme.text }}>{isRtl ? w.nameAr : w.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        {locationMode === 'shelf' && shelves.length > 0 && (
+          <View style={styles.locationPicker}>
+            {shelves.map((s) => (
+              <TouchableOpacity
+                key={s.id}
+                style={[styles.pickerChip, { backgroundColor: selectedShelfId === s.id ? theme.primary + '30' : theme.input }]}
+                onPress={() => setSelectedShelfId(s.id)}
+              >
+                <Text style={{ color: selectedShelfId === s.id ? theme.primary : theme.text }}>{isRtl ? s.nameAr : s.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+
       {/* Header Info */}
       <View style={[styles.infoCard, { backgroundColor: theme.primaryBackground }]}>
         <Ionicons name="information-circle" size={20} color={theme.primary} />
@@ -629,6 +717,40 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     fontSize: 13,
+  },
+  locationSection: {
+    margin: 16,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  locationLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  locationChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  locationPicker: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  pickerChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   searchContainer: {
     flexDirection: 'row',

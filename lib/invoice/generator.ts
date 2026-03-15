@@ -5,8 +5,12 @@ import { Asset } from 'expo-asset';
 import { Invoice, InvoiceGenerationOptions, CompanyInfo } from './types';
 import { generateInvoiceHTML } from './template';
 
-// Convert local asset to base64
-export const getLogoBase64 = async (): Promise<string | undefined> => {
+// Minimal inline SVG fallback when asset load fails (72x72 golden "G" placeholder) - pre-encoded base64
+const FALLBACK_LOGO_BASE64 =
+  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI3MiIgaGVpZ2h0PSI3MiIgdmlld0JveD0iMCAwIDcyIDcyIj48cmVjdCB3aWR0aD0iNzIiIGhlaWdodD0iNzIiIGZpbGw9IiNmZWYzYzciIHN0cm9rZT0iI2Y1OWUwYiIgc3Ryb2tlLXdpZHRoPSIxIiByeD0iNiIvPjx0ZXh0IHg9IjM2IiB5PSI0NiIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjgiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiNkOTc3MDYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkc8L3RleHQ+PC9zdmc+';
+
+// Convert local asset to base64. Returns fallback SVG if asset/File API fails.
+export const getLogoBase64 = async (): Promise<string> => {
   try {
     const asset = Asset.fromModule(require('../../assets/logo.jpeg'));
     await asset.downloadAsync();
@@ -14,13 +18,12 @@ export const getLogoBase64 = async (): Promise<string | undefined> => {
     if (asset.localUri) {
       const file = new File(asset.localUri);
       const base64 = await file.base64();
-      return `data:image/jpeg;base64,${base64}`;
+      if (base64) return `data:image/jpeg;base64,${base64}`;
     }
-    return undefined;
   } catch (error) {
-    console.error('Error loading logo:', error);
-    return undefined;
+    console.warn('Logo load failed, using fallback:', error);
   }
+  return FALLBACK_LOGO_BASE64;
 };
 
 // Generate invoice number

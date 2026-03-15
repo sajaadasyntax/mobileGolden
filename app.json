@@ -22,7 +22,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.golden.inventory"
+      "package": "com.golden.inventory",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "bundler": "metro",

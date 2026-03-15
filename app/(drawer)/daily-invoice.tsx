@@ -12,6 +12,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -630,7 +632,8 @@ export default function DailyInvoiceScreen() {
 
       {/* Item Picker Modal */}
       <Modal visible={showItemPicker} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={40}>
+          <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
             <View style={[styles.modalHeader, isRtl && styles.rowReverse]}>
               <Text style={[styles.modalTitle, { color: theme.text }]}>{t('selectItem', locale)}</Text>
@@ -758,11 +761,13 @@ export default function DailyInvoiceScreen() {
             )}
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Checkout Modal */}
       <Modal visible={showCheckout} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={40}>
+          <View style={styles.modalOverlay}>
           <View style={[styles.checkoutModal, { backgroundColor: theme.surface }]}>
             <View style={[styles.modalHeader, isRtl && styles.rowReverse]}>
               <Text style={[styles.modalTitle, { color: theme.text }]}>{t('closeInvoice', locale)}</Text>
@@ -771,7 +776,7 @@ export default function DailyInvoiceScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.checkoutDetails}>
+            <ScrollView style={styles.checkoutDetails} keyboardShouldPersistTaps="handled">
               <View style={[styles.checkoutRow, isRtl && styles.rowReverse]}>
                 <Text style={[styles.checkoutLabel, { color: theme.textSecondary }]}>{t('itemsSold', locale)}</Text>
                 <Text style={[styles.checkoutValue, { color: theme.text }]}>{itemCount}</Text>
@@ -934,6 +939,7 @@ export default function DailyInvoiceScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {lastInvoice && (

@@ -70,6 +70,12 @@ export default function UsersScreen() {
   const [editShelfId, setEditShelfId] = useState<string | null>(null);
   const [editWarehouseId, setEditWarehouseId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
+  const [resetPasswordName, setResetPasswordName] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const [newUser, setNewUser] = useState({
     email: '',
@@ -245,6 +251,51 @@ export default function UsersScreen() {
     setShowEditModal(true);
   };
 
+  const openResetPasswordModal = (user: User) => {
+    setResetPasswordUserId(user.id);
+    setResetPasswordName(locale === 'ar' ? user.nameAr || user.name : user.name);
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowResetPasswordModal(true);
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordUserId) return;
+    if (newPassword.length < 6) {
+      Alert.alert(
+        locale === 'ar' ? 'خطأ' : 'Error',
+        locale === 'ar' ? 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' : 'Password must be at least 6 characters'
+      );
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert(
+        locale === 'ar' ? 'خطأ' : 'Error',
+        locale === 'ar' ? 'كلمات المرور غير متطابقة' : 'Passwords do not match'
+      );
+      return;
+    }
+    setResettingPassword(true);
+    try {
+      await api.users.resetPassword(resetPasswordUserId, newPassword);
+      setShowResetPasswordModal(false);
+      setResetPasswordUserId(null);
+      setNewPassword('');
+      setConfirmPassword('');
+      Alert.alert(
+        locale === 'ar' ? 'نجح' : 'Success',
+        locale === 'ar' ? 'تم إعادة تعيين كلمة المرور بنجاح' : 'Password reset successfully'
+      );
+    } catch (error: any) {
+      Alert.alert(
+        locale === 'ar' ? 'خطأ' : 'Error',
+        error?.message || (locale === 'ar' ? 'فشل في إعادة تعيين كلمة المرور' : 'Failed to reset password')
+      );
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
   const handleEditUser = async () => {
     if (!selectedUser) return;
     setSaving(true);
@@ -352,6 +403,12 @@ export default function UsersScreen() {
             onPress={() => openEditModal(item)}
           >
             <Ionicons name="create-outline" size={20} color={theme.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: theme.textSecondary + '15' }]}
+            onPress={() => openResetPasswordModal(item)}
+          >
+            <Ionicons name="key-outline" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: item.isActive ? theme.error + '15' : theme.success + '15' }]}
@@ -773,6 +830,70 @@ export default function UsersScreen() {
                 ) : (
                   <Text style={styles.submitButtonText}>
                     {locale === 'ar' ? 'حفظ' : 'Save Changes'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Reset Password Modal */}
+      <Modal
+        visible={showResetPasswordModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowResetPasswordModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            <View style={[styles.modalHeader, isRtl && styles.rowReverse]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                {locale === 'ar' ? 'إعادة تعيين كلمة المرور' : 'Reset Password'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowResetPasswordModal(false)}>
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+              {resetPasswordName ? (
+                <Text style={[styles.userName, { color: theme.text, marginBottom: 16 }]}>
+                  {resetPasswordName}
+                </Text>
+              ) : null}
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                {locale === 'ar' ? 'كلمة المرور الجديدة' : 'New Password'} *
+              </Text>
+              <TextInput
+                style={[styles.textInput, { backgroundColor: theme.input, borderColor: theme.inputBorder, color: theme.text }]}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+                placeholder={locale === 'ar' ? '6 أحرف على الأقل' : 'At least 6 characters'}
+                placeholderTextColor={theme.inputPlaceholder}
+              />
+              <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 16 }]}>
+                {locale === 'ar' ? 'تأكيد كلمة المرور' : 'Confirm Password'} *
+              </Text>
+              <TextInput
+                style={[styles.textInput, { backgroundColor: theme.input, borderColor: theme.inputBorder, color: theme.text }]}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                placeholder={locale === 'ar' ? 'أعد إدخال كلمة المرور' : 'Re-enter password'}
+                placeholderTextColor={theme.inputPlaceholder}
+              />
+              <TouchableOpacity
+                style={[styles.submitButton, { backgroundColor: theme.primary, marginTop: 24 }, resettingPassword && styles.submitButtonDisabled]}
+                onPress={handleResetPassword}
+                disabled={resettingPassword}
+              >
+                {resettingPassword ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>
+                    {locale === 'ar' ? 'إعادة التعيين' : 'Reset Password'}
                   </Text>
                 )}
               </TouchableOpacity>

@@ -11,6 +11,8 @@ import {
   TextInput,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -119,7 +121,7 @@ export default function ShelfRequestsScreen() {
 
   const loadAvailableItems = async () => {
     try {
-      const result = await api.inventory.items();
+      const result = await api.inventory.items.list();
       const items = result?.data || result || [];
       setAvailableItems(
         items.map((item: any) => ({
@@ -518,7 +520,7 @@ export default function ShelfRequestsScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody}>
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
               {/* Request Items */}
               <View style={[styles.sectionHeader, isRtl && styles.rowReverse]}>
                 <Text style={[styles.sectionTitle, { color: theme.text }]}>
@@ -616,7 +618,8 @@ export default function ShelfRequestsScreen() {
 
       {/* Item Picker Modal */}
       <Modal visible={showItemPicker} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={40}>
+          <View style={styles.modalOverlay}>
           <View style={[styles.pickerModal, { backgroundColor: theme.surface }]}>
             <View style={[styles.modalHeader, isRtl && styles.rowReverse]}>
               <Text style={[styles.modalTitle, { color: theme.text }]}>{t('selectItem', locale)}</Text>
@@ -666,6 +669,7 @@ export default function ShelfRequestsScreen() {
             />
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

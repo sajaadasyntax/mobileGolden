@@ -408,10 +408,9 @@ export const api = {
       }),
   },
   inventory: {
-    items: (page = 1, pageSize = 50) => 
-      trpcQuery<any>('inventory.items.list', { page, pageSize, isActive: true }),
-    itemsWithPrices: async (branchId: string, page = 1, pageSize = 50) => {
+    itemsWithPrices: async (branchId: string, page = 1, pageSize = 50, options?: { warehouseId?: string; shelfId?: string }) => {
       const token = await getToken();
+      const priceParams = { itemId: '', branchId, ...(options?.warehouseId && { warehouseId: options.warehouseId }), ...(options?.shelfId && { shelfId: options.shelfId }) };
       // Get items first
       const itemsResponse = await fetch(
         `${API_URL}/trpc/inventory.items.list?input=${encodeURIComponent(JSON.stringify({ json: { page, pageSize, isActive: true } }))}`,
@@ -424,12 +423,12 @@ export const api = {
       const itemsResult = await itemsResponse.json();
       const items = itemsResult.result?.data?.json?.data || itemsResult.result?.data?.data || [];
       
-      // Get price policies for each item
+      // Get price policies for each item (resolution: shelf > warehouse > branch)
       const itemsWithPrices = await Promise.all(
         items.map(async (item: any) => {
           try {
             const priceResponse = await fetch(
-              `${API_URL}/trpc/inventory.pricePolicies.getForItem?input=${encodeURIComponent(JSON.stringify({ json: { itemId: item.id, branchId } }))}`,
+              `${API_URL}/trpc/inventory.pricePolicies.getForItem?input=${encodeURIComponent(JSON.stringify({ json: { ...priceParams, itemId: item.id } }))}`,
               {
                 headers: {
                   ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -470,15 +469,27 @@ export const api = {
     warehouses: () => 
       trpcQuery<any>('inventory.warehouses.list', {}),
     
-    categories: () => 
-      trpcQuery<any>('inventory.categories.list'),
-    
-    units: () => 
-      trpcQuery<any>('inventory.units.list'),
+    categories: {
+      list: (opts?: { includeInactive?: boolean }) =>
+        trpcQuery<any>('inventory.categories.list', opts || {}),
+      create: (data: { name: string; nameAr: string; parentId?: string }) =>
+        trpcMutation<any>('inventory.categories.create', data),
+      update: (data: { id: string; name?: string; nameAr?: string; parentId?: string | null; isActive?: boolean }) =>
+        trpcMutation<any>('inventory.categories.update', data),
+    },
+    units: {
+      list: () => trpcQuery<any>('inventory.units.list'),
+      create: (data: { name: string; nameAr: string; symbol: string }) =>
+        trpcMutation<any>('inventory.units.create', data),
+      update: (data: { id: string; name?: string; nameAr?: string; symbol?: string }) =>
+        trpcMutation<any>('inventory.units.update', data),
+    },
 
     items: {
       list: (page = 1, pageSize = 50) =>
         trpcQuery<any>('inventory.items.list', { page, pageSize, isActive: true }),
+      getById: (id: string) =>
+        trpcQuery<any>('inventory.items.getById', { id }),
       create: (data: {
         sku: string;
         nameEn: string;
@@ -493,18 +504,27 @@ export const api = {
     },
     // Price policies
     pricePolicies: {
-      list: (branchId: string, itemId?: string) => 
-        trpcQuery<any>('inventory.pricePolicies.list', { 
-          branchId, 
-          ...(itemId && { itemId }) 
+      list: (branchId: string, itemId?: string, warehouseId?: string, shelfId?: string) =>
+        trpcQuery<any>('inventory.pricePolicies.list', {
+          branchId,
+          ...(itemId && { itemId }),
+          ...(warehouseId !== undefined && { warehouseId }),
+          ...(shelfId !== undefined && { shelfId }),
         }),
-      
-      getForItem: (itemId: string, branchId: string) => 
-        trpcQuery<any>('inventory.pricePolicies.getForItem', { itemId, branchId }),
-      
+
+      getForItem: (itemId: string, branchId: string, warehouseId?: string, shelfId?: string) =>
+        trpcQuery<any>('inventory.pricePolicies.getForItem', {
+          itemId,
+          branchId,
+          ...(warehouseId && { warehouseId }),
+          ...(shelfId && { shelfId }),
+        }),
+
       create: (data: {
         itemId: string;
         branchId: string;
+        warehouseId?: string;
+        shelfId?: string;
         wholesalePriceUsd: number;
         retailPriceUsd: number;
         priceRangeMinUsd: number;
@@ -541,7 +561,7 @@ export const api = {
           ...(options?.includeEmpty !== undefined && { includeEmpty: options.includeEmpty }),
         }),
       
-      getMovements: (options?: { batchId?: string; itemId?: string; startDate?: string; endDate?: string; page?: number; pageSize?: number }) => 
+      getMovements: (options?: { batchId?: string; itemId?: string; startDate?: string; endDate?: string; page?: number; pageSize?: number }) =>
         trpcQuery<any>('inventory.stock.getMovements', {
           page: options?.page || 1,
           pageSize: options?.pageSize || 50,
@@ -550,6 +570,17 @@ export const api = {
           ...(options?.startDate && { startDate: options.startDate }),
           ...(options?.endDate && { endDate: options.endDate }),
         }),
+
+      divideBatch: (data: { batchId: string; targetUnitId: string; quantityInTargetUnit: number }) =>
+        trpcMutation<any>('inventory.stock.divideBatch', data),
+    },
+
+    unitConversions: {
+      list: () => trpcQuery<any>('inventory.unitConversions.list'),
+      create: (data: { fromUnitId: string; toUnitId: string; factor: number }) =>
+        trpcMutation<any>('inventory.unitConversions.create', data),
+      update: (data: { id: string; factor?: number }) =>
+        trpcMutation<any>('inventory.unitConversions.update', data),
     },
   },
   sales: {
@@ -821,7 +852,12 @@ export const api = {
         trpcMutation<any>('accounting.expenses.approve', { id }),
       
       categories: {
-        list: () => trpcQuery<any>('accounting.expenses.categories.list'),
+        list: (opts?: { includeInactive?: boolean }) =>
+          trpcQuery<any>('accounting.expenses.categories.list', opts || {}),
+        create: (data: { name: string; nameAr: string }) =>
+          trpcMutation<any>('accounting.expenses.categories.create', data),
+        update: (data: { id: string; name?: string; nameAr?: string; isActive?: boolean }) =>
+          trpcMutation<any>('accounting.expenses.categories.update', data),
       },
     },
     

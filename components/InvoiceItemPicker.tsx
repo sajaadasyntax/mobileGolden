@@ -168,7 +168,7 @@ export default function InvoiceItemPicker({ visible, onClose, onSelect, priceTyp
       console.error('Failed to load items:', error);
       // Fallback to basic items if price fetching fails
       try {
-        const basicResult = await api.inventory.items();
+        const basicResult = await api.inventory.items.list();
         const basicItems = basicResult?.data || basicResult || [];
         setItems(basicItems.map((item: any) => ({
           id: item.id,

@@ -136,6 +136,22 @@ function DrawerLayout() {
         options={({ route }) => ({ title: locale === 'ar' ? 'المستخدمون' : 'Users' })}
       />
       <Drawer.Screen
+        name="units"
+        options={({ route }) => ({ title: locale === 'ar' ? 'الوحدات' : 'Units' })}
+      />
+      <Drawer.Screen
+        name="unit-conversions"
+        options={({ route }) => ({ title: locale === 'ar' ? 'تحويل الوحدات' : 'Unit Conversions' })}
+      />
+      <Drawer.Screen
+        name="categories"
+        options={({ route }) => ({ title: locale === 'ar' ? 'تصنيفات المنتجات' : 'Product Categories' })}
+      />
+      <Drawer.Screen
+        name="expense-categories"
+        options={({ route }) => ({ title: locale === 'ar' ? 'تصنيفات المصروفات' : 'Expense Categories' })}
+      />
+      <Drawer.Screen
         name="bank-payments"
         options={({ route }) => ({ title: locale === 'ar' ? 'دفعات البنك' : 'Bank Payments' })}
       />
