@@ -447,6 +447,8 @@ export default function InvoiceItemPicker({ visible, onClose, onSelect, priceTyp
                   onChangeText={setQuantity}
                   keyboardType="numeric"
                   textAlign="center"
+                  returnKeyType="done"
+                  selectTextOnFocus={true}
                 />
                 <TouchableOpacity
                   style={[styles.quantityButton, { backgroundColor: theme.backgroundTertiary }]}
@@ -654,18 +656,18 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   quantityButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   quantityInput: {
-    width: 60,
-    height: 40,
+    width: 80,
+    height: 44,
     borderRadius: 10,
     borderWidth: 1,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
   },
   addButton: {

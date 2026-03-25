@@ -12,7 +12,7 @@ import {
   Modal,
   Image,
   ScrollView,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -50,6 +50,7 @@ export default function SalesScreen() {
   const { user } = useAuthStore();
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const showUsd = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +63,9 @@ export default function SalesScreen() {
   const [loadingReceipt, setLoadingReceipt] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailedInvoice, setDetailedInvoice] = useState<SalesInvoice | null>(null);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'paid' | 'outstanding' | 'cancelled'>('all');
   const isRtl = locale === 'ar';
+  const isAdminOrManager = user?.role === 'ADMIN' || user?.role === 'MANAGER';
 
   // Check if user can void invoices
   const canVoidInvoice = user?.role === 'ADMIN' || user?.role === 'MANAGER';
@@ -122,6 +125,11 @@ export default function SalesScreen() {
   };
 
   const handleInvoicePress = async (invoice: SalesInvoice) => {
+    // Admin/manager navigate to full detail screen
+    if (isAdminOrManager) {
+      router.push({ pathname: '/(drawer)/sales-invoice-detail', params: { id: invoice.id } });
+      return;
+    }
     setSelectedInvoice(invoice);
     setShowActionModal(true);
     // Fetch full details in background
@@ -218,6 +226,17 @@ export default function SalesScreen() {
     }
   };
 
+  const getFilteredInvoices = () => {
+    switch (activeFilter) {
+      case 'paid': return invoices.filter(i => i.status === 'PAID');
+      case 'outstanding': return invoices.filter(i => ['DRAFT', 'ISSUED', 'PARTIALLY_PAID'].includes(i.status));
+      case 'cancelled': return invoices.filter(i => i.status === 'CANCELLED');
+      default: return invoices;
+    }
+  };
+
+  const filteredInvoices = getFilteredInvoices();
+
   const renderInvoice = ({ item }: { item: SalesInvoice }) => {
     const statusColor = getStatusColor(item.status);
     const isVoided = item.status === 'CANCELLED' || item.status === 'VOIDED';
@@ -305,9 +324,53 @@ export default function SalesScreen() {
         <Text style={styles.newSaleText}>{t('newSale', locale)}</Text>
       </TouchableOpacity>
 
+      {/* Filter Tabs */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.filterContainer, { backgroundColor: theme.card }]} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 8 }}>
+        {[
+          { key: 'all', label: locale === 'ar' ? 'الكل' : 'All', count: invoices.length },
+          { key: 'paid', label: locale === 'ar' ? 'مدفوعة' : 'Paid', count: invoices.filter(i => i.status === 'PAID').length },
+          { key: 'outstanding', label: locale === 'ar' ? 'معلقة' : 'Outstanding', count: invoices.filter(i => ['DRAFT', 'ISSUED', 'PARTIALLY_PAID'].includes(i.status)).length },
+          { key: 'cancelled', label: locale === 'ar' ? 'ملغاة' : 'Cancelled', count: invoices.filter(i => i.status === 'CANCELLED').length },
+        ].map((f) => (
+          <TouchableOpacity
+            key={f.key}
+            style={[styles.filterTab, { backgroundColor: activeFilter === f.key ? theme.primary : theme.backgroundSecondary }]}
+            onPress={() => setActiveFilter(f.key as any)}
+          >
+            <Text style={[styles.filterTabText, { color: activeFilter === f.key ? '#fff' : theme.textSecondary }]}>
+              {f.label} {f.count > 0 ? `(${f.count})` : ''}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Admin quick links to sales orders and goods requests */}
+      {isAdminOrManager && (
+        <View style={[styles.quickLinksRow, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+          <TouchableOpacity
+            style={[styles.quickLinkBtn, { borderColor: theme.primary }]}
+            onPress={() => router.push('/(drawer)/warehouse-sales-orders')}
+          >
+            <Ionicons name="cube-outline" size={16} color={theme.primary} />
+            <Text style={[styles.quickLinkText, { color: theme.primary }]}>
+              {locale === 'ar' ? 'طلبات البيع' : 'Sales Orders'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.quickLinkBtn, { borderColor: theme.primary }]}
+            onPress={() => router.push('/(drawer)/shelf-requests')}
+          >
+            <Ionicons name="git-pull-request-outline" size={16} color={theme.primary} />
+            <Text style={[styles.quickLinkText, { color: theme.primary }]}>
+              {locale === 'ar' ? 'طلبات الرف' : 'Shelf Requests'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Invoices List */}
       <FlatList
-        data={invoices}
+        data={filteredInvoices}
         keyExtractor={(item) => item.id}
         renderItem={renderInvoice}
         contentContainerStyle={styles.listContent}
@@ -791,7 +854,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   receiptFullImage: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height * 0.8,
+    width: '100%',
+    height: '80%',
+  },
+  filterContainer: {
+    maxHeight: 52,
+    borderBottomWidth: 1,
+  },
+  filterTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  filterTabText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  quickLinksRow: {
+    flexDirection: 'row',
+    gap: 8,
+    padding: 8,
+    borderTopWidth: 1,
+  },
+  quickLinkBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  quickLinkText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

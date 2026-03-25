@@ -20,7 +20,7 @@ import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
-import { api } from '@/lib/api';
+import { api, showError } from '@/lib/api';
 
 interface Item {
   id: string;
@@ -222,7 +222,7 @@ export default function PricesScreen() {
       setShowEditModal(false);
       Alert.alert(t('success', locale), t('updatedSuccessfully', locale));
     } catch (error: any) {
-      Alert.alert(t('error', locale), error.message || t('operationFailed', locale));
+      showError(error, locale);
     } finally {
       setSaving(false);
     }
@@ -317,7 +317,7 @@ export default function PricesScreen() {
       Alert.alert(t('success', locale), locale === 'ar' ? 'تم إضافة الصنف بنجاح' : 'Item added successfully');
       await loadItems();
     } catch (error: any) {
-      Alert.alert(t('error', locale), error.message || t('operationFailed', locale));
+      showError(error, locale);
     } finally {
       setAddingItem(false);
     }
@@ -604,6 +604,8 @@ export default function PricesScreen() {
                       value={newItem.wholesalePriceUsd}
                       onChangeText={(v) => setNewItem({ ...newItem, wholesalePriceUsd: v })}
                       keyboardType="decimal-pad"
+                      returnKeyType="done"
+                      selectTextOnFocus={true}
                     />
                   </View>
                 </View>
@@ -620,6 +622,8 @@ export default function PricesScreen() {
                       value={newItem.retailPriceUsd}
                       onChangeText={(v) => setNewItem({ ...newItem, retailPriceUsd: v })}
                       keyboardType="decimal-pad"
+                      returnKeyType="done"
+                      selectTextOnFocus={true}
                     />
                   </View>
                 </View>
@@ -691,6 +695,8 @@ export default function PricesScreen() {
                     onChangeText={(text) => setEditPrices({ ...editPrices, wholesalePriceUsd: text })}
                     keyboardType="decimal-pad"
                     textAlign={isRtl ? 'right' : 'left'}
+                    returnKeyType="done"
+                    selectTextOnFocus={true}
                   />
                 </View>
               </View>
@@ -710,6 +716,8 @@ export default function PricesScreen() {
                     onChangeText={(text) => setEditPrices({ ...editPrices, retailPriceUsd: text })}
                     keyboardType="decimal-pad"
                     textAlign={isRtl ? 'right' : 'left'}
+                    returnKeyType="done"
+                    selectTextOnFocus={true}
                   />
                 </View>
               </View>

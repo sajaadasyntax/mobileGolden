@@ -10,7 +10,7 @@ import {
   Modal,
   Image,
   ScrollView,
-  Dimensions,
+  useWindowDimensions,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,7 +20,6 @@ import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
 import { api, getFullUrl } from '@/lib/api';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface Transaction {
   id: string;
@@ -38,6 +37,7 @@ export default function TransactionsScreen() {
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
   const { user } = useAuthStore();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isRtl = locale === 'ar';
   
   const isAdmin = ['ADMIN', 'MANAGER'].includes(user?.role || '');
@@ -354,7 +354,7 @@ export default function TransactionsScreen() {
         onRequestClose={() => setShowReceiptModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+          <View style={[styles.modalContainer, { backgroundColor: theme.background, width: screenWidth - 40 }]}>
             {/* Header */}
             <View style={[styles.modalHeader, isRtl && styles.modalHeaderRtl]}>
               <Text style={[styles.modalTitle, { color: theme.text }]}>
@@ -393,10 +393,10 @@ export default function TransactionsScreen() {
                 style={styles.imageScroll}
               >
                 {selectedTransaction.receiptImages.map((imageUri, index) => (
-                  <View key={index} style={styles.imageContainer}>
+                  <View key={index} style={[styles.imageContainer, { width: screenWidth - 40 }]}>
                     <Image
                       source={{ uri: getFullUrl(imageUri) }}
-                      style={styles.receiptImage}
+                      style={[styles.receiptImage, { width: screenWidth - 40, height: screenHeight * 0.6 }]}
                       resizeMode="contain"
                     />
                   </View>
@@ -592,7 +592,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContainer: {
-    width: screenWidth - 40,
     maxHeight: '90%',
     borderRadius: 20,
     overflow: 'hidden',
@@ -634,14 +633,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   imageContainer: {
-    width: screenWidth - 40,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   receiptImage: {
-    width: screenWidth - 40,
-    height: screenHeight * 0.6,
     borderRadius: 12,
   },
   imageCounter: {

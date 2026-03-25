@@ -9,6 +9,8 @@ import { TouchableOpacity, StyleSheet, I18nManager, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ScreenOrientation from 'expo-screen-orientation';
+import NetworkBanner from '@/components/NetworkBanner';
 
 function DrawerToggleButton({ position }: { position: 'left' | 'right' }) {
   const navigation = useNavigation();
@@ -34,7 +36,13 @@ function DrawerLayout() {
   const isRtl = locale === 'ar';
   const insets = useSafeAreaInsets();
 
+  useEffect(() => {
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+  }, []);
+
   return (
+    <>
+    <NetworkBanner />
     <Drawer
       drawerContent={(props) => <CustomDrawer {...props} />}
       screenOptions={({ navigation }) => ({
@@ -277,7 +285,15 @@ function DrawerLayout() {
           drawerItemStyle: { display: 'none' },
         })}
       />
+      <Drawer.Screen
+        name="sales-invoice-detail"
+        options={({ route }) => ({ 
+          title: locale === 'ar' ? 'تفاصيل فاتورة المبيعات' : 'Sales Invoice Details',
+          drawerItemStyle: { display: 'none' },
+        })}
+      />
     </Drawer>
+    </>
   );
 }
 

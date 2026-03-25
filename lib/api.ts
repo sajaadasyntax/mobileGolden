@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import { t, type Locale } from '@/lib/i18n';
 
 // Get API URL from config or environment
 // For Android emulator, use http://10.0.2.2:4000 (special IP that maps to host machine)
@@ -46,6 +47,84 @@ export async function setToken(token: string): Promise<void> {
 export async function removeToken(): Promise<void> {
   await SecureStore.deleteItemAsync('token');
 }
+
+// ─── Bilingual error helpers ───────────────────────────────────────────────
+
+/**
+ * Maps a raw error to a localized (bilingual) message using the t() helper.
+ */
+export function getLocalizedError(error: any, locale: Locale): string {
+  const msg: string = error?.message || '';
+
+  // Network errors
+  if (
+    error instanceof TypeError ||
+    msg.includes('Network request failed') ||
+    msg.includes('fetch failed') ||
+    msg.includes('Cannot connect') ||
+    msg.includes('ECONNREFUSED') ||
+    msg.includes('network')
+  ) {
+    return `${t('errorNoNetwork', locale)}\n${t('errorNoNetworkDesc', locale)}`;
+  }
+
+  // Session expired
+  if (msg.includes('UNAUTHORIZED') || msg.includes('Unauthorized') || msg.includes('token')) {
+    return t('errorSessionExpired', locale);
+  }
+
+  // Server errors (HTTP 5xx)
+  if (msg.includes('500') || msg.includes('502') || msg.includes('503') || msg.includes('504')) {
+    return t('errorServer', locale);
+  }
+
+  // Timeout
+  if (msg.includes('timeout') || msg.includes('ETIMEDOUT') || msg.includes('timed out')) {
+    return t('errorTimeout', locale);
+  }
+
+  // SKU already exists
+  if (msg.includes('SKU') || msg.includes('sku') || msg.includes('already exists')) {
+    return t('errorSkuExists', locale);
+  }
+
+  // Permission denied
+  if (msg.includes('FORBIDDEN') || msg.includes('permission') || msg.includes('access')) {
+    return t('errorPermissionDenied', locale);
+  }
+
+  // Day cycle closed
+  if (msg.includes('day') && (msg.includes('closed') || msg.includes('open'))) {
+    return t('errorDayClosed', locale);
+  }
+
+  // Insufficient quantity
+  if (msg.includes('insufficient') || msg.includes('stock') || msg.includes('quantity')) {
+    return t('errorInsufficientQty', locale);
+  }
+
+  // Zod / validation errors
+  if (msg.includes('invalid') || msg.includes('required') || msg.includes('validation')) {
+    return `${t('errorInvalidInput', locale)}: ${msg}`;
+  }
+
+  // Return raw message if it's meaningful, otherwise generic
+  if (msg && msg.length > 0 && msg !== 'Request failed') {
+    return msg;
+  }
+
+  return t('errorUnknown', locale);
+}
+
+/**
+ * Shows a user-friendly bilingual error alert.
+ */
+export function showError(error: any, locale: Locale, title?: string): void {
+  const message = getLocalizedError(error, locale);
+  Alert.alert(title || t('error', locale), message);
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 
 // API client
 interface ApiOptions {
@@ -513,6 +592,16 @@ export const api = {
         minStockLevel?: number;
         maxStockLevel?: number;
       }) => trpcMutation<any>('inventory.items.create', data),
+      update: (data: {
+        id: string;
+        nameEn?: string;
+        nameAr?: string;
+        sku?: string;
+        description?: string;
+        categoryId?: string;
+        unitId?: string;
+        isActive?: boolean;
+      }) => trpcMutation<any>('inventory.items.update', data),
     },
     // Price policies
     pricePolicies: {

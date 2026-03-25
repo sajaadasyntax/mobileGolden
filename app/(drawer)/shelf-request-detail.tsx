@@ -223,34 +223,52 @@ export default function ShelfRequestDetailScreen() {
       }
     }
 
-    try {
-      setSubmitting(true);
+    // Confirmation dialog
+    Alert.alert(
+      locale === 'ar' ? 'تأكيد الصرف' : 'Confirm Issue',
+      locale === 'ar'
+        ? `هل تريد صرف ${validLines.length} صنف من المستودع؟`
+        : `Issue ${validLines.length} item(s) from warehouse?`,
+      [
+        { text: locale === 'ar' ? 'تراجع' : 'Cancel', style: 'cancel' },
+        {
+          text: locale === 'ar' ? 'تأكيد' : 'Confirm',
+          onPress: async () => {
+            try {
+              setSubmitting(true);
+              await api.sales.goodsRequests.issue({
+                requestId: id!,
+                warehouseId: selectedWarehouse,
+                lines: validLines.map(l => ({
+                  lineId: l.lineId,
+                  qtyIssued: parseFloat(l.qtyToIssue),
+                })),
+              });
+              Alert.alert(
+                locale === 'ar' ? 'نجاح' : 'Success',
+                locale === 'ar' ? 'تم صرف البضائع بنجاح' : 'Goods issued successfully'
+              );
+              setIssueMode(false);
+              await loadRequest();
+            } catch (error: any) {
+              Alert.alert(
+                locale === 'ar' ? 'خطأ' : 'Error',
+                error.message || (locale === 'ar' ? 'فشل في صرف البضائع' : 'Failed to issue goods')
+              );
+            } finally {
+              setSubmitting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
-      await api.sales.goodsRequests.issue({
-        requestId: id!,
-        warehouseId: selectedWarehouse,
-        lines: validLines.map(l => ({
-          lineId: l.lineId,
-          qtyIssued: parseFloat(l.qtyToIssue),
-        })),
-      });
+  const GR_STATUS_STEPS = ['DRAFT', 'SUBMITTED', 'APPROVED', 'ISSUED', 'RECEIVED'];
 
-      Alert.alert(
-        locale === 'ar' ? 'نجاح' : 'Success',
-        locale === 'ar' ? 'تم صرف البضائع بنجاح' : 'Goods issued successfully'
-      );
-      
-      setIssueMode(false);
-      await loadRequest();
-    } catch (error: any) {
-      console.error('Failed to issue goods:', error);
-      Alert.alert(
-        locale === 'ar' ? 'خطأ' : 'Error',
-        error.message || (locale === 'ar' ? 'فشل في صرف البضائع' : 'Failed to issue goods')
-      );
-    } finally {
-      setSubmitting(false);
-    }
+  const getStepIndex = (status: string) => {
+    if (status === 'REJECTED') return -1;
+    return GR_STATUS_STEPS.indexOf(status);
   };
 
   if (loading) {
@@ -318,6 +336,46 @@ export default function ShelfRequestDetailScreen() {
             </View>
           </View>
         </View>
+
+        {/* Status Steps */}
+        {request.status !== 'REJECTED' ? (
+          <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <View style={[styles.stepsRow, isRtl && styles.rowReverse]}>
+              {GR_STATUS_STEPS.map((step, index) => {
+                const activeStep = getStepIndex(request.status);
+                const isActive = index === activeStep;
+                const isDone = index < activeStep;
+                const color = isDone || isActive ? theme.primary : theme.border;
+                return (
+                  <View key={step} style={styles.stepItem}>
+                    <View style={[styles.stepCircle, { borderColor: color, backgroundColor: isDone ? theme.primary : 'transparent' }]}>
+                      {isDone ? (
+                        <Ionicons name="checkmark" size={12} color="#fff" />
+                      ) : (
+                        <View style={[styles.stepDot, { backgroundColor: isActive ? theme.primary : theme.border }]} />
+                      )}
+                    </View>
+                    <Text style={[styles.stepLabel, { color: isActive || isDone ? theme.primary : theme.textSecondary }]}>
+                      {getStatusLabel(step)}
+                    </Text>
+                    {index < GR_STATUS_STEPS.length - 1 && (
+                      <View style={[styles.stepLine, { backgroundColor: index < activeStep ? theme.primary : theme.border }]} />
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        ) : (
+          <View style={[styles.section, { backgroundColor: (theme.error || '#ef4444') + '15', borderColor: (theme.error || '#ef4444') + '40' }]}>
+            <View style={[styles.cancelledRow, isRtl && styles.rowReverse]}>
+              <Ionicons name="close-circle" size={18} color={theme.error || '#ef4444'} />
+              <Text style={{ color: theme.error || '#ef4444', fontWeight: '600', marginLeft: 6 }}>
+                {locale === 'ar' ? 'هذا الطلب مرفوض' : 'This request is rejected'}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Warehouse Selection (Issue Mode) */}
         {issueMode && (
@@ -449,6 +507,32 @@ export default function ShelfRequestDetailScreen() {
             );
           })}
         </View>
+
+        {/* Issue Summary */}
+        {['ISSUED', 'RECEIVED'].includes(request.status) && (
+          <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }, isRtl && styles.textRtl]}>
+              {locale === 'ar' ? 'ملخص الصرف' : 'Issue Summary'}
+            </Text>
+            {request.lines.filter(l => l.qtyIssued > 0).map((line) => (
+              <View key={line.id} style={[styles.historyRow, { borderBottomColor: theme.border }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.historyItemName, { color: theme.text }]}>
+                    {isRtl ? (line.item.nameAr || line.item.nameEn) : line.item.nameEn}
+                  </Text>
+                </View>
+                <View style={[styles.historyQty, isRtl && { alignItems: 'flex-start' }]}>
+                  <Text style={[styles.historyQtyText, { color: theme.success }]}>
+                    {locale === 'ar' ? `مصروف: ${line.qtyIssued}` : `Issued: ${line.qtyIssued}`}
+                  </Text>
+                  <Text style={[styles.historyQtyText, { color: theme.textSecondary }]}>
+                    {locale === 'ar' ? `موافق: ${line.qtyApproved}` : `Approved: ${line.qtyApproved}`}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Notes */}
         {request.notes && (
@@ -830,5 +914,66 @@ const styles = StyleSheet.create({
   warehouseItemText: {
     fontSize: 16,
     flex: 1,
+  },
+  stepsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  stepItem: {
+    flex: 1,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  stepCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+    zIndex: 1,
+  },
+  stepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  stepLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  stepLine: {
+    position: 'absolute',
+    top: 13,
+    left: '50%',
+    right: '-50%',
+    height: 2,
+    zIndex: 0,
+  },
+  cancelledRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  historyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  historyItemName: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  historyQty: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  historyQtyText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

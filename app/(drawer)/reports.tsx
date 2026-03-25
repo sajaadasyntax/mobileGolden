@@ -6,7 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Modal,
-  Dimensions,
+  useWindowDimensions,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -19,7 +19,6 @@ import { t } from '@/lib/i18n';
 import { api } from '@/lib/api';
 import PieChart from '@/components/PieChart';
 
-const { width: screenWidth } = Dimensions.get('window');
 
 // Chart colors palette
 const CHART_COLORS = [
@@ -68,6 +67,7 @@ export default function ReportsScreen() {
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
   const { user } = useAuthStore();
+  const { width: screenWidth } = useWindowDimensions();
   const isRtl = locale === 'ar';
 
   useEffect(() => {

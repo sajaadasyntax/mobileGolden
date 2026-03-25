@@ -17,11 +17,12 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
-import { api, uploadReceipt, getFullUrl } from '@/lib/api';
+import { api, uploadReceipt, getFullUrl, showError } from '@/lib/api';
 import {
   Invoice,
   InvoiceItem as InvoiceItemType,
@@ -47,6 +48,7 @@ interface AvailableItem {
 }
 
 export default function DailyInvoiceScreen() {
+  const router = useRouter();
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
   const { user } = useAuthStore();
@@ -252,7 +254,7 @@ export default function DailyInvoiceScreen() {
       setQuantity('1');
       setShowItemPicker(false);
     } catch (error: any) {
-      Alert.alert(t('error', locale), error.message || 'Failed to add item');
+      showError(error, locale);
     } finally {
       setSaving(false);
     }
@@ -263,7 +265,7 @@ export default function DailyInvoiceScreen() {
       await api.sales.dailyInvoiceDraft.removeLine(lineId);
       await refreshDraft();
     } catch (error: any) {
-      Alert.alert(t('error', locale), error.message || 'Failed to remove item');
+      showError(error, locale);
     }
   };
 
@@ -273,7 +275,7 @@ export default function DailyInvoiceScreen() {
       await api.sales.dailyInvoiceDraft.updateLineQty(lineId, newQty);
       await refreshDraft();
     } catch (error: any) {
-      Alert.alert(t('error', locale), error.message || 'Failed to update quantity');
+      showError(error, locale);
     }
   };
 
@@ -292,7 +294,7 @@ export default function DailyInvoiceScreen() {
               await api.sales.dailyInvoiceDraft.clearDraft(shelfId);
               await refreshDraft();
             } catch (error: any) {
-              Alert.alert(t('error', locale), error.message);
+              showError(error, locale);
             }
           },
         },
@@ -359,7 +361,7 @@ export default function DailyInvoiceScreen() {
 
       const mappedPaymentMethod = paymentMethod === 'CARD' ? 'BANK_TRANSFER' : paymentMethod as 'CASH' | 'MIXED';
 
-      await api.sales.dailyInvoiceDraft.checkout({
+      const checkoutResult = await api.sales.dailyInvoiceDraft.checkout({
         shelfId,
         paymentMethod: mappedPaymentMethod,
         cashAmountSdg: paymentMethod === 'CASH' ? cashAmount : paymentMethod === 'MIXED' ? cashAmount : 0,
@@ -367,6 +369,7 @@ export default function DailyInvoiceScreen() {
         transactionNumber: transactionNumber || undefined,
         receiptImageUrls: uploadedUrls,
       });
+      const createdInvoiceId = checkoutResult?.id || checkoutResult?.invoiceId || (checkoutResult as any)?.result?.data?.id;
 
       // Build invoice for preview
       const builtInvoice: Invoice = {
@@ -410,27 +413,38 @@ export default function DailyInvoiceScreen() {
       setLastInvoice(builtInvoice);
       setShowCheckout(false);
 
-      Alert.alert(
-        t('success', locale),
-        t('invoiceClosed', locale),
-        [
-          {
-            text: locale === 'ar' ? 'معاينة الفاتورة' : 'View Invoice',
-            onPress: () => setShowPreview(true),
+      const resetAndRefresh = () => {
+        setCashReceived('');
+        setCardReceived('');
+        setTransactionNumber('');
+        setReceiptImages([]);
+        setPaymentMethod('CASH');
+        refreshDraft();
+      };
+
+      const alertButtons: any[] = [
+        {
+          text: locale === 'ar' ? 'معاينة PDF' : 'View PDF',
+          onPress: () => setShowPreview(true),
+        },
+      ];
+
+      if (createdInvoiceId) {
+        alertButtons.unshift({
+          text: locale === 'ar' ? 'تفاصيل الفاتورة' : 'Invoice Details',
+          onPress: () => {
+            resetAndRefresh();
+            router.push({ pathname: '/(drawer)/sales-invoice-detail', params: { id: createdInvoiceId } });
           },
-          {
-            text: 'OK',
-            onPress: () => {
-              setCashReceived('');
-              setCardReceived('');
-              setTransactionNumber('');
-              setReceiptImages([]);
-              setPaymentMethod('CASH');
-              refreshDraft();
-            },
-          },
-        ]
-      );
+        });
+      }
+
+      alertButtons.push({
+        text: 'OK',
+        onPress: resetAndRefresh,
+      });
+
+      Alert.alert(t('success', locale), t('invoiceClosed', locale), alertButtons);
     } catch (error: any) {
       setUploadingImages(false);
       const msg: string = error.message || '';
@@ -443,7 +457,7 @@ export default function DailyInvoiceScreen() {
             : `This transaction number already exists. System ID: ${systemId}`)
         );
       } else {
-        Alert.alert(t('error', locale), msg || (locale === 'ar' ? 'فشل في حفظ الفاتورة' : 'Failed to save invoice'));
+        showError(error, locale);
       }
     } finally {
       setSaving(false);

@@ -12,7 +12,7 @@ import {
   Modal,
   Image,
   ScrollView,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocaleStore } from '@/stores/locale';
@@ -45,6 +45,7 @@ export default function BankPaymentsScreen() {
   const { locale } = useLocaleStore();
   const { theme } = useThemeStore();
   const { user } = useAuthStore();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isRtl = locale === 'ar';
 
   const [payments, setPayments] = useState<BankPayment[]>([]);
@@ -433,9 +434,9 @@ export default function BankPaymentsScreen() {
               ? selectedPayment.receiptImageUrls
               : selectedPayment.receiptImageUrl ? [selectedPayment.receiptImageUrl] : []);
             return (
-              <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width: Dimensions.get('window').width }}>
+              <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width: screenWidth }}>
                 {images.map((img, idx) => (
-                  <View key={idx} style={[styles.receiptPage, { width: Dimensions.get('window').width }]}>
+                  <View key={idx} style={[styles.receiptPage, { width: screenWidth }]}>
                     <Image
                       source={{ uri: getFullUrl(img) }}
                       style={styles.receiptFullImage}
@@ -578,7 +579,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   receiptFullImage: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height * 0.8,
+    width: '100%',
+    height: '80%',
   },
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
@@ -52,6 +53,12 @@ export default function InventoryScreen() {
       loadWarehousesAndShelves();
     }
   }, [user, viewMode, currentWarehouseId, currentShelfId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadInventory();
+    }, [user, viewMode, currentWarehouseId, currentShelfId])
+  );
 
   useEffect(() => {
     // Show location picker when warehouse or shelf mode is selected

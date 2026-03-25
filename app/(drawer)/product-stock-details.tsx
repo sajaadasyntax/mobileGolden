@@ -64,6 +64,14 @@ export default function ProductStockDetailsScreen() {
   const [divideQty, setDivideQty] = useState('');
   const [dividing, setDividing] = useState(false);
   const [units, setUnits] = useState<{ id: string; name: string; symbol: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; nameAr?: string }[]>([]);
+
+  // Edit product state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editItem, setEditItem] = useState({ nameEn: '', nameAr: '', sku: '', categoryId: '', unitId: '' });
+  const [saving, setSaving] = useState(false);
+
+  const canEdit = ['ADMIN', 'MANAGER', 'PROCUREMENT'].includes(user?.role || '');
 
   useEffect(() => {
     if (itemId) {
@@ -130,6 +138,57 @@ export default function ProductStockDetailsScreen() {
     setRefreshing(true);
     await loadStockDetails();
     setRefreshing(false);
+  };
+
+  const openEditModal = async () => {
+    if (!itemInfo) return;
+    setEditItem({
+      nameEn: itemInfo.nameEn || '',
+      nameAr: itemInfo.nameAr || '',
+      sku: itemInfo.sku || '',
+      categoryId: itemInfo.category?.id || itemInfo.categoryId || '',
+      unitId: itemInfo.unit?.id || itemInfo.unitId || '',
+    });
+    try {
+      const [unitList, categoryList] = await Promise.all([
+        api.inventory.units.list(),
+        api.inventory.categories.list(),
+      ]);
+      setUnits(unitList || []);
+      setCategories(categoryList || []);
+    } catch {}
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editItem.nameEn.trim() || !editItem.nameAr.trim() || !editItem.sku.trim()) {
+      Alert.alert(
+        locale === 'ar' ? 'خطأ' : 'Error',
+        locale === 'ar' ? 'يرجى ملء الحقول المطلوبة' : 'Please fill all required fields'
+      );
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.inventory.items.update({
+        id: itemId,
+        nameEn: editItem.nameEn.trim(),
+        nameAr: editItem.nameAr.trim(),
+        sku: editItem.sku.trim(),
+        ...(editItem.categoryId && { categoryId: editItem.categoryId }),
+        ...(editItem.unitId && { unitId: editItem.unitId }),
+      });
+      setShowEditModal(false);
+      await loadStockDetails();
+      Alert.alert(
+        locale === 'ar' ? 'تم' : 'Success',
+        locale === 'ar' ? 'تم تحديث بيانات المنتج' : 'Product updated successfully'
+      );
+    } catch (e: any) {
+      Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', e?.message || (locale === 'ar' ? 'فشل التحديث' : 'Update failed'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -200,8 +259,9 @@ export default function ProductStockDetailsScreen() {
   const displayName = isRtl ? itemInfo?.nameAr : itemInfo?.nameEn || itemInfo?.name;
 
   return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
     <ScrollView
-      style={[styles.container, { backgroundColor: theme.background }]}
+      style={{ flex: 1 }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
       }
@@ -224,6 +284,11 @@ export default function ProductStockDetailsScreen() {
             </Text>
           )}
         </View>
+        {canEdit && (
+          <TouchableOpacity style={{ padding: 8 }} onPress={openEditModal}>
+            <Ionicons name="create-outline" size={22} color={theme.primary} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Total Stock Card */}
@@ -455,6 +520,119 @@ export default function ProductStockDetailsScreen() {
         </View>
       )}
     </ScrollView>
+
+      {/* Edit Product Modal */}
+      <Modal visible={showEditModal} animationType="slide" transparent onRequestClose={() => setShowEditModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <View style={[styles.divideModal, { backgroundColor: theme.card }]}>
+              <View style={[styles.modalHeader, isRtl && { flexDirection: 'row-reverse' }]}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>
+                  {locale === 'ar' ? 'تعديل المنتج' : 'Edit Product'}
+                </Text>
+                <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                  <Ionicons name="close" size={24} color={theme.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                {/* Name EN */}
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                  {locale === 'ar' ? 'الاسم (إنجليزي) *' : 'Name (English) *'}
+                </Text>
+                <TextInput
+                  style={[styles.textInput, { color: theme.text, backgroundColor: theme.backgroundSecondary, borderColor: theme.border, marginBottom: 12 }]}
+                  value={editItem.nameEn}
+                  onChangeText={(v) => setEditItem({ ...editItem, nameEn: v })}
+                  placeholder="Item name"
+                  placeholderTextColor={theme.inputPlaceholder}
+                  returnKeyType="next"
+                />
+                {/* Name AR */}
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                  {locale === 'ar' ? 'الاسم (عربي) *' : 'Name (Arabic) *'}
+                </Text>
+                <TextInput
+                  style={[styles.textInput, { color: theme.text, backgroundColor: theme.backgroundSecondary, borderColor: theme.border, textAlign: 'right', marginBottom: 12 }]}
+                  value={editItem.nameAr}
+                  onChangeText={(v) => setEditItem({ ...editItem, nameAr: v })}
+                  placeholder="اسم الصنف"
+                  placeholderTextColor={theme.inputPlaceholder}
+                  returnKeyType="next"
+                />
+                {/* SKU */}
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                  {locale === 'ar' ? 'رمز الصنف (SKU) *' : 'SKU *'}
+                </Text>
+                <TextInput
+                  style={[styles.textInput, { color: theme.text, backgroundColor: theme.backgroundSecondary, borderColor: theme.border, marginBottom: 12 }]}
+                  value={editItem.sku}
+                  onChangeText={(v) => setEditItem({ ...editItem, sku: v })}
+                  placeholder="SKU-001"
+                  placeholderTextColor={theme.inputPlaceholder}
+                  autoCapitalize="characters"
+                  returnKeyType="done"
+                />
+                {/* Category */}
+                {categories.length > 0 && (
+                  <>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                      {locale === 'ar' ? 'الفئة' : 'Category'}
+                    </Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        {categories.map((cat) => (
+                          <TouchableOpacity
+                            key={cat.id}
+                            style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: editItem.categoryId === cat.id ? theme.primary : theme.backgroundTertiary }}
+                            onPress={() => setEditItem({ ...editItem, categoryId: cat.id })}
+                          >
+                            <Text style={{ color: editItem.categoryId === cat.id ? '#fff' : theme.text, fontSize: 13 }}>
+                              {locale === 'ar' ? (cat as any).nameAr || cat.name : cat.name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </ScrollView>
+                  </>
+                )}
+                {/* Unit */}
+                {units.length > 0 && (
+                  <>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                      {locale === 'ar' ? 'الوحدة' : 'Unit'}
+                    </Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        {units.map((u) => (
+                          <TouchableOpacity
+                            key={u.id}
+                            style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: editItem.unitId === u.id ? theme.primary : theme.backgroundTertiary }}
+                            onPress={() => setEditItem({ ...editItem, unitId: u.id })}
+                          >
+                            <Text style={{ color: editItem.unitId === u.id ? '#fff' : theme.text, fontSize: 13 }}>
+                              {u.name} ({u.symbol})
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </ScrollView>
+                  </>
+                )}
+                <TouchableOpacity
+                  style={[styles.submitBtn, { backgroundColor: theme.primary, marginTop: 8 }, saving && { opacity: 0.6 }]}
+                  onPress={handleSaveEdit}
+                  disabled={saving}
+                >
+                  {saving ? <ActivityIndicator color="#fff" /> : (
+                    <Text style={styles.submitBtnText}>{locale === 'ar' ? 'حفظ' : 'Save'}</Text>
+                  )}
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </View>
   );
 }
 

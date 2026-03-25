@@ -10,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useLocaleStore } from '@/stores/locale';
 import { useAuthStore } from '@/stores/auth';
 import { useThemeStore } from '@/stores/theme';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -70,19 +71,21 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <QueryClientProvider client={queryClient}>
-          <StatusBar style={mode === 'light' ? 'dark' : 'light'} />
-          <Stack
-            screenOptions={{
-              headerStyle: { backgroundColor: theme.header },
-              headerTintColor: theme.headerText,
-              headerTitleStyle: { fontWeight: '600' },
-              contentStyle: { backgroundColor: theme.background },
-            }}
-          >
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="login" options={{ headerShown: false }} />
-            <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
-          </Stack>
+          <ErrorBoundary>
+            <StatusBar style={mode === 'light' ? 'dark' : 'light'} />
+            <Stack
+              screenOptions={{
+                headerStyle: { backgroundColor: theme.header },
+                headerTintColor: theme.headerText,
+                headerTitleStyle: { fontWeight: '600' },
+                contentStyle: { backgroundColor: theme.background },
+              }}
+            >
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="login" options={{ headerShown: false }} />
+              <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+            </Stack>
+          </ErrorBoundary>
         </QueryClientProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>

@@ -207,33 +207,51 @@ export default function SalesOrderDetailScreen() {
       }
     }
 
-    try {
-      setSubmitting(true);
+    // Confirmation dialog
+    Alert.alert(
+      locale === 'ar' ? 'تأكيد التسليم' : 'Confirm Delivery',
+      locale === 'ar'
+        ? `هل تريد تأكيد تسليم ${validLines.length} صنف؟`
+        : `Confirm delivery of ${validLines.length} item(s)?`,
+      [
+        { text: locale === 'ar' ? 'تراجع' : 'Cancel', style: 'cancel' },
+        {
+          text: locale === 'ar' ? 'تأكيد' : 'Confirm',
+          onPress: async () => {
+            try {
+              setSubmitting(true);
+              await api.sales.salesOrders.deliver({
+                orderId: id!,
+                lines: validLines.map(l => ({
+                  lineId: l.lineId,
+                  qtyDelivered: parseFloat(l.qtyToDeliver),
+                })),
+              });
+              Alert.alert(
+                locale === 'ar' ? 'نجاح' : 'Success',
+                locale === 'ar' ? 'تم التسليم بنجاح' : 'Delivery completed successfully'
+              );
+              setDeliveryMode(false);
+              await loadOrder();
+            } catch (error: any) {
+              Alert.alert(
+                locale === 'ar' ? 'خطأ' : 'Error',
+                error.message || (locale === 'ar' ? 'فشل في التسليم' : 'Failed to deliver')
+              );
+            } finally {
+              setSubmitting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
-      await api.sales.salesOrders.deliver({
-        orderId: id!,
-        lines: validLines.map(l => ({
-          lineId: l.lineId,
-          qtyDelivered: parseFloat(l.qtyToDeliver),
-        })),
-      });
+  const SO_STATUS_STEPS = ['DRAFT', 'CONFIRMED', 'PARTIALLY_DELIVERED', 'FULLY_DELIVERED'];
 
-      Alert.alert(
-        locale === 'ar' ? 'نجاح' : 'Success',
-        locale === 'ar' ? 'تم التسليم بنجاح' : 'Delivery completed successfully'
-      );
-      
-      setDeliveryMode(false);
-      await loadOrder();
-    } catch (error: any) {
-      console.error('Failed to deliver:', error);
-      Alert.alert(
-        locale === 'ar' ? 'خطأ' : 'Error',
-        error.message || (locale === 'ar' ? 'فشل في التسليم' : 'Failed to deliver')
-      );
-    } finally {
-      setSubmitting(false);
-    }
+  const getStepIndex = (status: string) => {
+    if (status === 'CANCELLED') return -1;
+    return SO_STATUS_STEPS.indexOf(status);
   };
 
   if (loading) {
@@ -310,6 +328,46 @@ export default function SalesOrderDetailScreen() {
             </View>
           </View>
         </View>
+
+        {/* Status Steps */}
+        {order.status !== 'CANCELLED' ? (
+          <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <View style={[styles.stepsRow, isRtl && styles.rowReverse]}>
+              {SO_STATUS_STEPS.map((step, index) => {
+                const activeStep = getStepIndex(order.status);
+                const isActive = index === activeStep;
+                const isDone = index < activeStep;
+                const color = isDone || isActive ? theme.primary : theme.border;
+                return (
+                  <View key={step} style={[styles.stepItem]}>
+                    <View style={[styles.stepCircle, { borderColor: color, backgroundColor: isDone ? theme.primary : 'transparent' }]}>
+                      {isDone ? (
+                        <Ionicons name="checkmark" size={12} color="#fff" />
+                      ) : (
+                        <View style={[styles.stepDot, { backgroundColor: isActive ? theme.primary : theme.border }]} />
+                      )}
+                    </View>
+                    <Text style={[styles.stepLabel, { color: isActive || isDone ? theme.primary : theme.textSecondary }]}>
+                      {getStatusLabel(step)}
+                    </Text>
+                    {index < SO_STATUS_STEPS.length - 1 && (
+                      <View style={[styles.stepLine, { backgroundColor: index < activeStep ? theme.primary : theme.border }]} />
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        ) : (
+          <View style={[styles.section, { backgroundColor: (theme.error || '#ef4444') + '15', borderColor: (theme.error || '#ef4444') + '40' }]}>
+            <View style={[styles.cancelledRow, isRtl && styles.rowReverse]}>
+              <Ionicons name="close-circle" size={18} color={theme.error || '#ef4444'} />
+              <Text style={{ color: theme.error || '#ef4444', fontWeight: '600', marginLeft: 6 }}>
+                {locale === 'ar' ? 'هذا الطلب ملغي' : 'This order is cancelled'}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Order Lines */}
         <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
@@ -420,6 +478,34 @@ export default function SalesOrderDetailScreen() {
             );
           })}
         </View>
+
+        {/* Delivery Summary (when partially or fully delivered) */}
+        {['PARTIALLY_DELIVERED', 'FULLY_DELIVERED'].includes(order.status) && (
+          <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }, isRtl && styles.textRtl]}>
+              {locale === 'ar' ? 'ملخص التسليم' : 'Delivery Summary'}
+            </Text>
+            {order.lines.filter(l => l.qtyDelivered > 0).map((line) => (
+              <View key={line.id} style={[styles.historyRow, { borderBottomColor: theme.border }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.historyItemName, { color: theme.text }]}>
+                    {isRtl ? (line.item.nameAr || line.item.nameEn) : line.item.nameEn}
+                  </Text>
+                </View>
+                <View style={[styles.historyQty, isRtl && { alignItems: 'flex-start' }]}>
+                  <Text style={[styles.historyQtyText, { color: theme.success }]}>
+                    {locale === 'ar' ? `مسلّم: ${line.qtyDelivered}` : `Delivered: ${line.qtyDelivered}`}
+                  </Text>
+                  {line.qty - line.qtyDelivered > 0 && (
+                    <Text style={[styles.historyQtyText, { color: theme.warning }]}>
+                      {locale === 'ar' ? `متبقي: ${line.qty - line.qtyDelivered}` : `Remaining: ${line.qty - line.qtyDelivered}`}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Notes */}
         {order.notes && (
@@ -724,5 +810,66 @@ const styles = StyleSheet.create({
   },
   textRtl: {
     textAlign: 'right',
+  },
+  stepsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  stepItem: {
+    flex: 1,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  stepCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+    zIndex: 1,
+  },
+  stepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  stepLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  stepLine: {
+    position: 'absolute',
+    top: 13,
+    left: '50%',
+    right: '-50%',
+    height: 2,
+    zIndex: 0,
+  },
+  cancelledRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  historyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  historyItemName: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  historyQty: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  historyQtyText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

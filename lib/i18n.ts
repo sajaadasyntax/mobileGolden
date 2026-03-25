@@ -218,6 +218,20 @@ export const translations = {
     updatedSuccessfully: 'Updated successfully',
     operationFailed: 'Operation failed',
     confirmDelete: 'Are you sure you want to delete?',
+
+    // Error messages (bilingual)
+    errorNoNetwork: 'No internet connection',
+    errorNoNetworkDesc: 'Please check your network and try again',
+    errorServer: 'Server error. Please try again later',
+    errorSessionExpired: 'Session expired. Please log in again',
+    errorTimeout: 'Request timed out. Please try again',
+    errorSkuExists: 'An item with this SKU already exists',
+    errorPermissionDenied: 'You do not have permission for this action',
+    errorInvalidInput: 'Please check your input and try again',
+    errorUnknown: 'Something went wrong. Please try again',
+    errorDayClosed: 'Day cycle is not open',
+    errorInsufficientQty: 'Insufficient quantity available',
+    retry: 'Retry',
     
     // Settings
     language: 'Language',
@@ -605,6 +619,20 @@ export const translations = {
     updatedSuccessfully: 'تم التحديث بنجاح',
     operationFailed: 'فشلت العملية',
     confirmDelete: 'هل أنت متأكد من الحذف؟',
+
+    // Error messages (bilingual)
+    errorNoNetwork: 'لا يوجد اتصال بالإنترنت',
+    errorNoNetworkDesc: 'يرجى التحقق من الشبكة والمحاولة مجدداً',
+    errorServer: 'خطأ في الخادم، يرجى المحاولة لاحقاً',
+    errorSessionExpired: 'انتهت الجلسة، يرجى تسجيل الدخول مجدداً',
+    errorTimeout: 'انتهت مهلة الطلب، يرجى المحاولة مجدداً',
+    errorSkuExists: 'يوجد صنف بهذا الرمز مسبقاً',
+    errorPermissionDenied: 'ليس لديك صلاحية لهذا الإجراء',
+    errorInvalidInput: 'يرجى التحقق من المدخلات والمحاولة مجدداً',
+    errorUnknown: 'حدث خطأ غير متوقع، يرجى المحاولة مجدداً',
+    errorDayClosed: 'يوم العمل غير مفتوح',
+    errorInsufficientQty: 'الكمية المتاحة غير كافية',
+    retry: 'إعادة المحاولة',
     
     // Settings
     language: 'اللغة',
