@@ -315,9 +315,16 @@ export default function InvoiceItemPicker({ visible, onClose, onSelect, priceTyp
           <Text style={[styles.itemName, { color: theme.text }, isRtl && styles.textRtl]}>
             {isRtl ? (item.nameAr || item.name) : item.name}
           </Text>
-          <Text style={[styles.itemSku, { color: theme.textMuted }]}>
-            {item.sku || 'No SKU'}
-          </Text>
+          <View style={{ flexDirection: isRtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginTop: 1 }}>
+            <Text style={[styles.itemSku, { color: theme.textMuted }]}>
+              {item.sku || 'No SKU'}
+            </Text>
+            {item.unit ? (
+              <View style={{ backgroundColor: theme.primary + '18', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: theme.primary }}>{item.unit}</Text>
+              </View>
+            ) : null}
+          </View>
           {expiryWarning && (
             <Text style={[styles.expiryWarning, { color: getExpiryColor(item.nearestExpiryDays) }]}>
               {expiryWarning}

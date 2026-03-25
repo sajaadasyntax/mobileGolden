@@ -27,6 +27,7 @@ interface Item {
   sku: string;
   nameEn: string;
   nameAr: string;
+  unit?: string;
   category?: { name: string; nameAr: string };
   wholesalePriceUsd?: number;
   retailPriceUsd?: number;
@@ -106,6 +107,7 @@ export default function PricesScreen() {
         sku: item.sku || 'N/A',
         nameEn: item.name,
         nameAr: item.nameAr || item.name,
+        unit: item.unit,
         wholesalePriceUsd: item.wholesalePrice || 0,
         retailPriceUsd: item.retailPrice || 0,
         costPriceUsd: 0,
@@ -346,7 +348,14 @@ export default function PricesScreen() {
           <Text style={[styles.itemName, { color: theme.text }, isRtl && styles.textRtl]}>
             {locale === 'ar' ? item.nameAr : item.nameEn}
           </Text>
-          <Text style={[styles.itemSku, { color: theme.textSecondary }, isRtl && styles.textRtl]}>{item.sku}</Text>
+          <View style={[styles.skuUnitRow, isRtl && styles.rowReverse]}>
+            <Text style={[styles.itemSku, { color: theme.textSecondary }]}>{item.sku}</Text>
+            {item.unit ? (
+              <View style={[styles.unitBadge, { backgroundColor: theme.primary + '18' }]}>
+                <Text style={[styles.unitBadgeText, { color: theme.primary }]}>{item.unit}</Text>
+              </View>
+            ) : null}
+          </View>
           <View style={[styles.priceRow, isRtl && styles.priceRowRtl]}>
             <View style={[styles.priceItem, { backgroundColor: theme.backgroundTertiary }]}>
               <Text style={[styles.priceLabel, { color: theme.textSecondary }]}>{t('wholesale', locale)}</Text>
@@ -863,7 +872,25 @@ const styles = StyleSheet.create({
   itemSku: {
     fontSize: 12,
     fontFamily: 'monospace',
+  },
+  skuUnitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginBottom: 8,
+    flexWrap: 'wrap',
+  },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
+  unitBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  unitBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   priceRow: {
     flexDirection: 'row',

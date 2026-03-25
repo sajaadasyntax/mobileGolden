@@ -535,6 +535,11 @@ export default function CreateSalesInvoiceScreen() {
                     >
                       <Ionicons name="add" size={16} color={theme.text} />
                     </TouchableOpacity>
+                    {item.unit ? (
+                      <View style={{ backgroundColor: theme.primary + '18', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 4 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: theme.primary }}>{item.unit}</Text>
+                      </View>
+                    ) : null}
                   </View>
                   <View style={[styles.itemTotals, isRtl && { alignItems: 'flex-start' }]}>
                     <Text style={[styles.itemTotalSdg, { color: theme.success }]}>

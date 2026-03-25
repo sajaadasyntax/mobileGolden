@@ -571,8 +571,8 @@ export default function DailyInvoiceScreen() {
                     <Text style={[styles.itemName, { color: theme.text }]}>{itemName}</Text>
                     <Text style={[styles.itemDetails, { color: theme.textSecondary }]}>
                       {showUsd
-                        ? `$${Number(line.unitPriceUsd).toFixed(2)} × ${line.qty}`
-                        : `${linePriceSdg.toLocaleString()} ${locale === 'ar' ? 'ج.س' : 'SDG'} × ${line.qty}`}
+                        ? `$${Number(line.unitPriceUsd).toFixed(2)} × ${line.qty}${line.item?.unit?.symbol || line.item?.unit?.nameEn ? ` ${line.item?.unit?.symbol || line.item?.unit?.nameEn}` : ''}`
+                        : `${linePriceSdg.toLocaleString()} ${locale === 'ar' ? 'ج.س' : 'SDG'} × ${line.qty}${line.item?.unit?.symbol || line.item?.unit?.nameEn ? ` ${line.item?.unit?.symbol || line.item?.unit?.nameEn}` : ''}`}
                     </Text>
                     <Text style={[styles.itemSku, { color: theme.textMuted }]}>
                       {line.item?.sku || ''}
@@ -697,9 +697,16 @@ export default function DailyInvoiceScreen() {
                     <Text style={[styles.pickableItemName, { color: theme.text }]}>
                       {isRtl ? item.nameAr : item.name}
                     </Text>
-                    <Text style={[styles.pickableItemSku, { color: theme.textSecondary }]}>
-                      {item.sku}
-                    </Text>
+                    <View style={{ flexDirection: isRtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                      <Text style={[styles.pickableItemSku, { color: theme.textSecondary }]}>
+                        {item.sku}
+                      </Text>
+                      {item.unit ? (
+                        <View style={{ backgroundColor: theme.primary + '18', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                          <Text style={{ fontSize: 11, fontWeight: '600', color: theme.primary }}>{item.unit}</Text>
+                        </View>
+                      ) : null}
+                    </View>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={[styles.pickableItemPriceSdg, { color: theme.primary }]}>
