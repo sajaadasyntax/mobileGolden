@@ -19,7 +19,7 @@ import { useThemeStore } from '@/stores/theme';
 import { useLocaleStore } from '@/stores/locale';
 import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
-import { api } from '@/lib/api';
+import { api, showError } from '@/lib/api';
 import {
   Invoice,
   InvoiceItem,
@@ -320,10 +320,7 @@ export default function CreateSalesInvoiceScreen() {
         ]
       );
     } catch (error: any) {
-      Alert.alert(
-        locale === 'ar' ? 'خطأ' : 'Error',
-        error.message || (locale === 'ar' ? 'فشل في حفظ الفاتورة' : 'Failed to save invoice')
-      );
+      showError(error, locale);
     } finally {
       setLoading(false);
     }

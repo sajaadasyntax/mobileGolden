@@ -73,8 +73,9 @@ export default function InvoiceItemPicker({ visible, onClose, onSelect, priceTyp
     
     setLoading(true);
     try {
-      // Get items with prices
-      const itemsWithPrices = await api.inventory.itemsWithPrices(user.branchId);
+      // Get items with prices - pass shelfId/warehouseId so shelf-specific price policies are resolved correctly
+      const locationOpts = shelfId ? { shelfId } : warehouseId ? { warehouseId } : undefined;
+      const itemsWithPrices = await api.inventory.itemsWithPrices(user.branchId, 1, 50, locationOpts);
       
       // Get stock data if shelfId or warehouseId is provided
       const stockMap = new Map<string, number>();
