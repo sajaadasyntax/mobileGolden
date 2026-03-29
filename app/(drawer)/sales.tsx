@@ -21,6 +21,8 @@ import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { t } from '@/lib/i18n';
 import { api, getFullUrl } from '@/lib/api';
+import { offlineVoidInvoice, getLocalQueuedInvoices } from '@/lib/offlineApi';
+import { connectivity } from '@/lib/connectivity';
 
 interface SalesInvoice {
   id: string;
@@ -73,8 +75,26 @@ export default function SalesScreen() {
   const loadInvoices = async () => {
     try {
       if (user?.branchId) {
-        const result = await api.sales.invoices(user.branchId);
-        setInvoices(result?.result?.data?.data || result?.data || []);
+        // Merge server invoices with locally queued offline invoices
+        const queued = await getLocalQueuedInvoices();
+        const queuedFormatted: SalesInvoice[] = queued.map((q: any) => ({
+          id: q._localRef,
+          invoiceNumber: q._localRef,
+          invoiceDate: new Date(q._createdAt).toISOString(),
+          totalSdg: 0,
+          totalUsd: 0,
+          status: 'OFFLINE_PENDING',
+          invoiceType: q.invoiceType || 'RETAIL',
+          _queued: true,
+        }));
+
+        if (connectivity.isOnline()) {
+          const result = await api.sales.invoices(user.branchId);
+          const serverInvoices = result?.result?.data?.data || result?.data || [];
+          setInvoices([...queuedFormatted, ...serverInvoices]);
+        } else {
+          setInvoices(queuedFormatted);
+        }
       }
     } catch (error) {
       console.error('Failed to load invoices:', error);
@@ -161,10 +181,18 @@ export default function SalesScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await api.sales.voidInvoice(selectedInvoice.id);
+              const userCtx = {
+                userId: user!.id,
+                branchId: user!.branchId!,
+                shelfId: (user as any)?.shelf?.id,
+                role: user!.role,
+              };
+              const outcome = await offlineVoidInvoice(selectedInvoice.id, undefined, userCtx);
               Alert.alert(
                 t('success', locale),
-                locale === 'ar' ? 'تم إلغاء الفاتورة بنجاح' : 'Invoice voided successfully'
+                outcome.queued
+                  ? (locale === 'ar' ? 'تم تسجيل الإلغاء وسيتم تطبيقه عند الاتصال' : 'Void queued — will apply when online')
+                  : (locale === 'ar' ? 'تم إلغاء الفاتورة بنجاح' : 'Invoice voided successfully')
               );
               setShowActionModal(false);
               setSelectedInvoice(null);

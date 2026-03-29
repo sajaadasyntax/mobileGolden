@@ -11,6 +11,7 @@ import { useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import NetworkBanner from '@/components/NetworkBanner';
+import SyncStatusBadge from '@/components/SyncStatusBadge';
 
 function DrawerToggleButton({ position }: { position: 'left' | 'right' }) {
   const navigation = useNavigation();
@@ -58,7 +59,18 @@ function DrawerLayout() {
         // For RTL: drawer on right, menu button on right
         // For LTR: drawer on left, menu button on left
         headerLeft: isRtl ? () => <View /> : () => <DrawerToggleButton position="left" />,
-        headerRight: isRtl ? () => <DrawerToggleButton position="right" /> : () => <View />,
+        headerRight: isRtl
+          ? () => (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 4 }}>
+                <SyncStatusBadge />
+                <DrawerToggleButton position="right" />
+              </View>
+            )
+          : () => (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 4 }}>
+                <SyncStatusBadge />
+              </View>
+            ),
         headerShown: true,
         drawerPosition: isRtl ? 'right' : 'left',
         drawerStyle: {
@@ -282,6 +294,13 @@ function DrawerLayout() {
         name="product-stock-details"
         options={({ route }) => ({ 
           title: locale === 'ar' ? 'تفاصيل مخزون المنتج' : 'Product Stock Details',
+          drawerItemStyle: { display: 'none' },
+        })}
+      />
+      <Drawer.Screen
+        name="sync-status"
+        options={({ route }) => ({
+          title: locale === 'ar' ? 'حالة المزامنة' : 'Sync Status',
           drawerItemStyle: { display: 'none' },
         })}
       />

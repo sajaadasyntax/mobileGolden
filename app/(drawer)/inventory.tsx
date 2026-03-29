@@ -18,6 +18,8 @@ import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
 import { api } from '@/lib/api';
+import { getCachedStockForShelf, getCachedStockForWarehouse, getCachedWarehouses, getCachedShelves } from '@/lib/offlineApi';
+import { connectivity } from '@/lib/connectivity';
 
 interface Item {
   id: string;
@@ -45,6 +47,7 @@ export default function InventoryScreen() {
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [shelves, setShelves] = useState<any[]>([]);
+  const [fromCache, setFromCache] = useState(false);
   const isRtl = locale === 'ar';
 
   useEffect(() => {
@@ -66,17 +69,25 @@ export default function InventoryScreen() {
   }, [viewMode]);
 
   const loadWarehousesAndShelves = async () => {
-    try {
-      const [warehousesData, shelvesData] = await Promise.all([
-        api.inventory.warehouses(),
-        api.inventory.shelves(),
-      ]);
-      setWarehouses(warehousesData || []);
-      setShelves(shelvesData || []);
-    } catch (error) {
-      console.error('Failed to load warehouses and shelves:', error);
-      Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', locale === 'ar' ? 'فشل تحميل المستودعات' : 'Failed to load warehouses');
+    if (connectivity.isOnline()) {
+      try {
+        const [warehousesData, shelvesData] = await Promise.all([
+          api.inventory.warehouses(),
+          api.inventory.shelves(),
+        ]);
+        setWarehouses(warehousesData || []);
+        setShelves(shelvesData || []);
+        return;
+      } catch {
+        // fall through to cache
+      }
     }
+    const [cachedWarehouses, cachedShelves] = await Promise.all([
+      getCachedWarehouses(),
+      getCachedShelves(),
+    ]);
+    setWarehouses(cachedWarehouses);
+    setShelves(cachedShelves);
   };
 
   const loadInventory = async () => {
@@ -85,22 +96,36 @@ export default function InventoryScreen() {
       
       const userRole = user?.role || '';
       
+      const isOnline = connectivity.isOnline();
+
       // Warehouse users see warehouse stock
       if (userRole === 'WAREHOUSE_SALES') {
-        const warehouses = await api.inventory.warehouses();
-        if (warehouses && warehouses.length > 0) {
-          const wh = warehouses[0];
+        let warehouseList = warehouses.length > 0 ? warehouses : (isOnline ? await api.inventory.warehouses() : await getCachedWarehouses());
+        if (warehouseList && warehouseList.length > 0) {
+          const wh = warehouseList[0];
           setCurrentWarehouseId(wh.id);
           setCurrentShelfId(undefined);
           setLocationName(locale === 'ar' ? wh.nameAr || wh.name : wh.name);
-          const stockResult = await api.inventory.stockManagement.getWarehouseStock(wh.id, { pageSize: 200 });
-          const stockData = stockResult?.data || stockResult || [];
-          setItems(mapStockToItems(stockData));
+          if (isOnline) {
+            try {
+              const stockResult = await api.inventory.stockManagement.getWarehouseStock(wh.id, { pageSize: 200 });
+              const stockData = stockResult?.data || stockResult || [];
+              setItems(mapStockToItems(stockData));
+              setFromCache(false);
+            } catch {
+              const cached = await getCachedStockForWarehouse(wh.id);
+              setItems(mapCachedStock(cached));
+              setFromCache(true);
+            }
+          } else {
+            const cached = await getCachedStockForWarehouse(wh.id);
+            setItems(mapCachedStock(cached));
+            setFromCache(true);
+          }
         }
       }
       // Shelf users see ONLY their assigned shelf stock
       else if (userRole === 'SHELF_SALES') {
-        // Use the user's assigned shelf directly from the user object
         const assignedShelf = (user as any)?.shelf;
         
         if (!assignedShelf) {
@@ -112,9 +137,22 @@ export default function InventoryScreen() {
         setCurrentShelfId(assignedShelf.id);
         setCurrentWarehouseId(undefined);
         setLocationName(locale === 'ar' ? assignedShelf.nameAr || assignedShelf.name : assignedShelf.name);
-        const stockResult = await api.inventory.stockManagement.getShelfStock(assignedShelf.id, { pageSize: 200 });
-        const stockData = stockResult?.data || stockResult || [];
-        setItems(mapStockToItems(stockData));
+        if (isOnline) {
+          try {
+            const stockResult = await api.inventory.stockManagement.getShelfStock(assignedShelf.id, { pageSize: 200 });
+            const stockData = stockResult?.data || stockResult || [];
+            setItems(mapStockToItems(stockData));
+            setFromCache(false);
+          } catch {
+            const cached = await getCachedStockForShelf(assignedShelf.id);
+            setItems(mapCachedStock(cached));
+            setFromCache(true);
+          }
+        } else {
+          const cached = await getCachedStockForShelf(assignedShelf.id);
+          setItems(mapCachedStock(cached));
+          setFromCache(true);
+        }
       }
       // Admin and Procurement can view all, specific warehouse, or specific shelf
       else if (['ADMIN', 'MANAGER', 'PROCUREMENT'].includes(userRole)) {
@@ -217,6 +255,17 @@ export default function InventoryScreen() {
     }));
   };
 
+  const mapCachedStock = (cached: any[]): Item[] => {
+    return cached.map((row: any) => ({
+      id: row.item_id,
+      sku: row.sku || '',
+      nameEn: row.name_en || '',
+      nameAr: row.name_ar || '',
+      unit: row.unit_symbol ? { symbol: row.unit_symbol } : undefined,
+      currentStock: Number(row.qty_remaining) || 0,
+    }));
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadInventory();
@@ -305,6 +354,14 @@ export default function InventoryScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {fromCache && (
+        <View style={[styles.cacheNotice, { backgroundColor: theme.warning + '20' }]}>
+          <Ionicons name="time-outline" size={14} color={theme.warning} />
+          <Text style={[styles.cacheNoticeText, { color: theme.warning }]}>
+            {locale === 'ar' ? 'بيانات مخزنة — غير متصل' : 'Cached data — offline mode'}
+          </Text>
+        </View>
+      )}
       {/* Simplified Filter Header for Admin */}
       {isAdmin && (
         <View style={[styles.filterHeader, { backgroundColor: theme.card }]}>
@@ -632,5 +689,16 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     marginTop: 12,
+  },
+  cacheNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 10,
+    paddingHorizontal: 16,
+  },
+  cacheNoticeText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

@@ -15,6 +15,8 @@ import { useLocaleStore } from '@/stores/locale';
 import { useThemeStore } from '@/stores/theme';
 import { t } from '@/lib/i18n';
 import { api } from '@/lib/api';
+import { getCachedDayCycle } from '@/lib/offlineApi';
+import { connectivity } from '@/lib/connectivity';
 
 const logo = require('@/assets/logo.jpeg');
 
@@ -25,27 +27,39 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [dayCycle, setDayCycle] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
+  const [dayCycleFromCache, setDayCycleFromCache] = useState(false);
   const isRtl = locale === 'ar';
   const isAdmin = ['ADMIN', 'MANAGER'].includes(user?.role || '');
 
   const loadData = async () => {
-    try {
-      if (user) {
+    if (!user) return;
+    const isOnline = connectivity.isOnline();
+
+    // Day cycle: try live first, fall back to cache
+    if (user.branchId) {
+      if (isOnline) {
         try {
           const cycle = await api.dayCycle.getCurrent(user.branchId);
           setDayCycle(cycle);
+          setDayCycleFromCache(false);
         } catch {
-          // branchId may be null or day cycle unavailable
+          const cached = await getCachedDayCycle(user.branchId);
+          setDayCycle(cached);
+          setDayCycleFromCache(true);
         }
-        if (isAdmin && user.branchId) {
-          try {
-            const dash = await api.accounting.reports.dashboard(user.branchId);
-            setSummary(dash);
-          } catch { /* ignore */ }
-        }
+      } else {
+        const cached = await getCachedDayCycle(user.branchId);
+        setDayCycle(cached);
+        setDayCycleFromCache(true);
       }
-    } catch (error) {
-      // Day might not be open
+    }
+
+    // Dashboard summary only available online
+    if (isAdmin && user.branchId && isOnline) {
+      try {
+        const dash = await api.accounting.reports.dashboard(user.branchId);
+        setSummary(dash);
+      } catch { /* ignore */ }
     }
   };
 
@@ -163,6 +177,16 @@ export default function DashboardScreen() {
               <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>{locale === 'ar' ? 'الربح' : 'Profit'}</Text>
             </View>
           </View>
+        </View>
+      )}
+
+      {/* Cached data indicator */}
+      {dayCycleFromCache && (
+        <View style={[styles.cacheNotice, { backgroundColor: theme.warning + '20' }]}>
+          <Ionicons name="time-outline" size={14} color={theme.warning} />
+          <Text style={[styles.cacheNoticeText, { color: theme.warning }]}>
+            {locale === 'ar' ? 'بيانات مخزنة — غير متصل' : 'Cached data — offline'}
+          </Text>
         </View>
       )}
 
@@ -360,5 +384,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  cacheNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  cacheNoticeText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

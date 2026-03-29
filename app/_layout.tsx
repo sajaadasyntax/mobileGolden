@@ -11,6 +11,9 @@ import { useLocaleStore } from '@/stores/locale';
 import { useAuthStore } from '@/stores/auth';
 import { useThemeStore } from '@/stores/theme';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { initDatabase } from '@/lib/db/database';
+import { startBackgroundSync, stopBackgroundSync, performFullSync } from '@/lib/sync/syncManager';
+import { refreshPendingCount } from '@/lib/sync/mutationQueue';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -40,6 +43,10 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepare() {
       try {
+        // Initialize offline database first (fast, local)
+        await initDatabase();
+        await refreshPendingCount();
+
         // Add timeout to prevent hanging
         const timeoutPromise = new Promise((resolve) => 
           setTimeout(() => resolve(null), 5000)
@@ -62,6 +69,26 @@ export default function RootLayout() {
     }
     prepare();
   }, []);
+
+  const { user, isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    if (isAuthenticated && user?.branchId) {
+      const ctx = {
+        userId: user.id,
+        branchId: user.branchId,
+        shelfId: user.shelf?.id,
+        role: user.role,
+      };
+      startBackgroundSync(ctx);
+      performFullSync(ctx).catch(() => {});
+    } else {
+      stopBackgroundSync();
+    }
+    return () => {
+      if (!isAuthenticated) stopBackgroundSync();
+    };
+  }, [isAuthenticated, user?.id]);
 
   if (isLoading) {
     return <View style={{ flex: 1, backgroundColor: theme.background }} />;

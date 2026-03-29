@@ -21,6 +21,7 @@ import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
 import { api } from '@/lib/api';
+import { offlineCreateGoodsRequest, offlineSubmitGoodsRequest } from '@/lib/offlineApi';
 
 interface ShelfRequest {
   id: string;
@@ -318,25 +319,41 @@ export default function ShelfRequestsScreen() {
 
     setSaving(true);
     try {
-      // Create the goods request (DRAFT status)
-      const createdRequest = await api.sales.goodsRequests.create({
+      const userCtx = {
+        userId: user!.id,
+        branchId: user!.branchId!,
+        shelfId: shelfId,
+        role: user!.role,
+      };
+
+      const payload = {
         shelfId,
-        lines: requestLines.map(l => ({
+        lines: requestLines.map((l: any) => ({
           itemId: l.itemId,
-          qtyRequested: l.qty, // Use qtyRequested as expected by backend
+          qtyRequested: l.qty,
         })),
         notes: notes || undefined,
-      });
+      };
 
-      // Automatically submit the request after creation
-      if (createdRequest?.id) {
-        await api.sales.goodsRequests.submit(createdRequest.id);
+      const createOutcome = await offlineCreateGoodsRequest(payload, userCtx);
+
+      if (createOutcome.queued) {
+        Alert.alert(
+          locale === 'ar' ? 'نجاح' : 'Success',
+          locale === 'ar'
+            ? `تم تسجيل الطلب محلياً (${createOutcome.localRef}) وسيُرسل عند الاتصال`
+            : `Request saved offline (${createOutcome.localRef}) — will submit when online`
+        );
+      } else {
+        // Auto-submit when online
+        if (createOutcome.result?.id) {
+          await offlineSubmitGoodsRequest(createOutcome.result.id, userCtx);
+        }
+        Alert.alert(
+          locale === 'ar' ? 'نجاح' : 'Success',
+          locale === 'ar' ? 'تم إرسال الطلب بنجاح' : 'Request submitted successfully'
+        );
       }
-
-      Alert.alert(
-        locale === 'ar' ? 'نجاح' : 'Success',
-        locale === 'ar' ? 'تم إرسال الطلب بنجاح' : 'Request submitted successfully'
-      );
       
       setShowNewRequest(false);
       setRequestLines([]);

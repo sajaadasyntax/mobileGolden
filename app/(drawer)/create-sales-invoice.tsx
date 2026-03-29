@@ -20,6 +20,7 @@ import { useLocaleStore } from '@/stores/locale';
 import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
 import { api, showError } from '@/lib/api';
+import { offlineCreateInvoice } from '@/lib/offlineApi';
 import {
   Invoice,
   InvoiceItem,
@@ -293,22 +294,34 @@ export default function CreateSalesInvoiceScreen() {
     
     setLoading(true);
     try {
-      // Format data for backend API
-      await api.sales.createInvoice({
+      const payload = {
         shelfId: selectedShelfId,
         customerId: currentInvoice.customer?.id,
-        invoiceType: currentInvoice.invoiceCategory, // WHOLESALE or RETAIL
+        invoiceType: currentInvoice.invoiceCategory as 'WHOLESALE' | 'RETAIL',
         notes: currentInvoice.notes,
-        lines: currentInvoice.items.map(item => ({
+        lines: currentInvoice.items.map((item: any) => ({
           itemId: item.itemId,
           qty: item.quantity,
           unitPriceUsd: item.unitPrice,
         })),
-      });
+      };
+
+      const userCtx = {
+        userId: user!.id,
+        branchId: user!.branchId!,
+        shelfId: selectedShelfId,
+        role: user!.role,
+      };
+
+      const outcome = await offlineCreateInvoice(payload, userCtx);
 
       Alert.alert(
         locale === 'ar' ? 'نجاح' : 'Success',
-        locale === 'ar' ? 'تم حفظ الفاتورة بنجاح' : 'Invoice saved successfully',
+        outcome.queued
+          ? (locale === 'ar'
+              ? `تم حفظ الفاتورة محلياً (${outcome.localRef}) وستتم مزامنتها عند الاتصال`
+              : `Invoice saved offline (${outcome.localRef}) — will sync when online`)
+          : (locale === 'ar' ? 'تم حفظ الفاتورة بنجاح' : 'Invoice saved successfully'),
         [
           {
             text: locale === 'ar' ? 'موافق' : 'OK',

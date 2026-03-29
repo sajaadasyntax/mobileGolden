@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { api, getToken, removeToken } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
+import { clearAllCaches } from '@/lib/db/database';
+import { useSyncStore } from '@/stores/sync';
 
 interface User {
   id: string;
@@ -53,6 +55,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     } finally {
       queryClient.clear();
       await removeToken();
+      useSyncStore.getState().reset();
+      try {
+        await clearAllCaches();
+      } catch {
+        // Non-critical
+      }
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },
