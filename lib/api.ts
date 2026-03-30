@@ -497,62 +497,82 @@ export const api = {
       }),
   },
   inventory: {
-    itemsWithPrices: async (branchId: string, page = 1, pageSize = 50, options?: { warehouseId?: string; shelfId?: string }) => {
+    itemsWithPrices: async (branchId: string, _page = 1, _pageSize = 50, options?: { warehouseId?: string; shelfId?: string }) => {
       const token = await getToken();
       const authHeaders = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 
-      const itemsResponse = await fetch(
-        `${API_URL}/trpc/inventory.items.list?input=${encodeURIComponent(JSON.stringify({ json: { page, pageSize, isActive: true } }))}`,
-        { headers: authHeaders }
-      );
-      const itemsResult = await itemsResponse.json();
-      if (itemsResult.error) throw new Error(itemsResult.error.message || 'Failed to load items');
-      const items = itemsResult.result?.data?.json?.data || itemsResult.result?.data?.data || [];
-      
-      const priceBaseParams: Record<string, string> = { branchId };
-      if (options?.warehouseId) priceBaseParams.warehouseId = options.warehouseId;
-      if (options?.shelfId) priceBaseParams.shelfId = options.shelfId;
+      const parsePrice = (val: any): number => {
+        if (val == null) return 0;
+        const n = Number(val);
+        return isNaN(n) ? 0 : n;
+      };
 
-      const itemsWithPrices = await Promise.all(
-        items.map(async (item: any) => {
-          try {
-            const priceResponse = await fetch(
-              `${API_URL}/trpc/inventory.pricePolicies.getForItem?input=${encodeURIComponent(JSON.stringify({ json: { ...priceBaseParams, itemId: item.id } }))}`,
-              { headers: authHeaders }
-            );
-            const priceResult = await priceResponse.json();
-            const policy = priceResult.result?.data?.json ?? priceResult.result?.data ?? null;
+      // Fetch all items across all pages (max 500 per page)
+      const BATCH = 500;
+      let allItems: any[] = [];
+      let itemPage = 1;
+      while (true) {
+        const res = await fetch(
+          `${API_URL}/trpc/inventory.items.list?input=${encodeURIComponent(JSON.stringify({ json: { page: itemPage, pageSize: BATCH, isActive: true } }))}`,
+          { headers: authHeaders }
+        );
+        const result = await res.json();
+        if (result.error) throw new Error(result.error.message || 'Failed to load items');
+        const batch = result.result?.data?.json?.data || result.result?.data?.data || [];
+        const totalPages = result.result?.data?.json?.totalPages ?? result.result?.data?.totalPages ?? 1;
+        allItems = allItems.concat(batch);
+        if (itemPage >= totalPages || batch.length === 0) break;
+        itemPage++;
+      }
 
-            const parsePrice = (val: any): number => {
-              if (val == null) return 0;
-              const n = Number(val);
-              return isNaN(n) ? 0 : n;
-            };
-            
-            return {
-              id: item.id,
-              name: item.nameEn,
-              nameAr: item.nameAr,
-              sku: item.sku,
-              wholesalePrice: policy ? parsePrice(policy.wholesalePriceUsd) : 0,
-              retailPrice: policy ? parsePrice(policy.retailPriceUsd) : 0,
-              unit: item.unit?.symbol || item.unit?.name,
-            };
-          } catch {
-            return {
-              id: item.id,
-              name: item.nameEn,
-              nameAr: item.nameAr,
-              sku: item.sku,
-              wholesalePrice: 0,
-              retailPrice: 0,
-              unit: item.unit?.symbol || item.unit?.name,
-            };
-          }
-        })
-      );
-      
-      return itemsWithPrices;
+      // Fetch all price policies for this branch+location in bulk (no N+1)
+      let allPolicies: any[] = [];
+      let policyPage = 1;
+      const policyParams: Record<string, any> = { branchId, pageSize: BATCH };
+      if (options?.warehouseId) policyParams.warehouseId = options.warehouseId;
+      if (options?.shelfId) policyParams.shelfId = options.shelfId;
+      while (true) {
+        const res = await fetch(
+          `${API_URL}/trpc/inventory.pricePolicies.list?input=${encodeURIComponent(JSON.stringify({ json: { ...policyParams, page: policyPage } }))}`,
+          { headers: authHeaders }
+        );
+        const result = await res.json();
+        // pricePolicies.list is admin-only; if forbidden, stop — prices will show as 0
+        if (result.error) break;
+        const batch = result.result?.data?.json?.data || result.result?.data?.data || [];
+        const totalPages = result.result?.data?.json?.totalPages ?? result.result?.data?.totalPages ?? 1;
+        allPolicies = allPolicies.concat(batch);
+        if (policyPage >= totalPages || batch.length === 0) break;
+        policyPage++;
+      }
+
+      // Build a best-match policy map per itemId.
+      // Resolution order (most specific wins): shelf > warehouse > branch-only
+      const specificity = (p: any): number => {
+        if (p.shelfId) return 3;
+        if (p.warehouseId) return 2;
+        return 1;
+      };
+      const policyMap = new Map<string, any>();
+      for (const p of allPolicies) {
+        const existing = policyMap.get(p.itemId);
+        if (!existing || specificity(p) > specificity(existing)) {
+          policyMap.set(p.itemId, p);
+        }
+      }
+
+      return allItems.map((item: any) => {
+        const policy = policyMap.get(item.id) ?? null;
+        return {
+          id: item.id,
+          name: item.nameEn,
+          nameAr: item.nameAr,
+          sku: item.sku,
+          wholesalePrice: policy ? parsePrice(policy.wholesalePriceUsd) : 0,
+          retailPrice: policy ? parsePrice(policy.retailPriceUsd) : 0,
+          unit: item.unit?.symbol || item.unit?.name,
+        };
+      });
     },
     shelves: () => 
       trpcQuery<any>('inventory.shelves.list', {}),
