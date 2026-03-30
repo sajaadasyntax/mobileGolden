@@ -98,7 +98,22 @@ export default function SalesScreen() {
       }
     } catch (error) {
       console.error('Failed to load invoices:', error);
-      Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', locale === 'ar' ? 'فشل تحميل الفواتير' : 'Failed to load invoices');
+      // Only show error if we're online (offline just shows queued invoices)
+      if (connectivity.isOnline()) {
+        Alert.alert(locale === 'ar' ? 'خطأ' : 'Error', locale === 'ar' ? 'فشل تحميل الفواتير' : 'Failed to load invoices');
+      }
+      // Still try to show queued invoices on error
+      try {
+        const queued = await getLocalQueuedInvoices();
+        if (queued.length > 0) {
+          setInvoices(queued.map((q: any) => ({
+            id: q._localRef, invoiceNumber: q._localRef,
+            invoiceDate: new Date(q._createdAt).toISOString(),
+            totalSdg: 0, totalUsd: 0, status: 'OFFLINE_PENDING',
+            invoiceType: q.invoiceType || 'RETAIL',
+          })));
+        }
+      } catch { /* ignore */ }
     } finally {
       setLoading(false);
     }

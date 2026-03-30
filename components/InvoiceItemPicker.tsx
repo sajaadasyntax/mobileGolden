@@ -15,6 +15,8 @@ import { useLocaleStore } from '@/stores/locale';
 import { useAuthStore } from '@/stores/auth';
 import { api } from '@/lib/api';
 import { t } from '@/lib/i18n';
+import { connectivity } from '@/lib/connectivity';
+import { getCachedItems, getCachedPricePolicies, getCachedStockForShelf, getCachedStockForWarehouse } from '@/lib/offlineApi';
 
 interface Batch {
   id: string;
@@ -167,20 +169,39 @@ export default function InvoiceItemPicker({ visible, onClose, onSelect, priceTyp
       setItems(itemsWithStock);
     } catch (error) {
       console.error('Failed to load items:', error);
-      // Fallback to basic items if price fetching fails
+      // Fallback to cached SQLite data when offline or API fails
       try {
-        const basicResult = await api.inventory.items.list();
-        const basicItems = basicResult?.data || basicResult || [];
-        setItems(basicItems.map((item: any) => ({
-          id: item.id,
-          name: item.nameEn || item.name,
-          nameAr: item.nameAr,
-          sku: item.sku,
-          wholesalePrice: 0,
-          retailPrice: 0,
-          unit: item.unit?.symbol || item.unit?.name,
-          stock: 0,
-        })));
+        const cachedItems = await getCachedItems();
+        const cachedPolicies = user?.branchId
+          ? await getCachedPricePolicies(user.branchId, shelfId)
+          : [];
+        const policyMap = new Map<string, any>();
+        for (const p of cachedPolicies) {
+          policyMap.set(p.item_id, p);
+        }
+
+        let stockMap = new Map<string, number>();
+        if (shelfId) {
+          const stock = await getCachedStockForShelf(shelfId);
+          stock.forEach((s: any) => stockMap.set(s.item_id, Number(s.qty_remaining) || 0));
+        } else if (warehouseId) {
+          const stock = await getCachedStockForWarehouse(warehouseId);
+          stock.forEach((s: any) => stockMap.set(s.item_id, Number(s.qty_remaining) || 0));
+        }
+
+        setItems(cachedItems.map((item: any) => {
+          const policy = policyMap.get(item.id);
+          return {
+            id: item.id,
+            name: item.name_en,
+            nameAr: item.name_ar,
+            sku: item.sku,
+            wholesalePrice: policy ? Number(policy.wholesale_price_usd) || 0 : 0,
+            retailPrice: policy ? Number(policy.retail_price_usd) || 0 : 0,
+            unit: item.unit_symbol || item.unit_name,
+            stock: stockMap.get(item.id) || 0,
+          };
+        }));
       } catch {
         setItems([]);
       }

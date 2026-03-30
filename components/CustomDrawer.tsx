@@ -93,6 +93,7 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
             { icon: 'pricetag-outline', label: locale === 'ar' ? 'تصنيفات المصروفات' : 'Expense Categories', route: '/(drawer)/expense-categories' },
             { icon: 'bar-chart-outline', label: t('monthlyReports', locale), route: '/(drawer)/reports' },
             { icon: 'stats-chart-outline', label: locale === 'ar' ? 'مبيعات المستخدمين' : 'User Sales Report', route: '/(drawer)/user-sales-report' },
+            { icon: 'cloud-upload-outline', label: locale === 'ar' ? 'استيراد / تصدير' : 'CSV Import / Export', route: '/(drawer)/csv-import-export' },
             { icon: 'settings-outline', label: t('settings', locale), route: '/(drawer)/settings' },
           ],
         },
@@ -113,6 +114,7 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
             { icon: 'grid-outline', label: locale === 'ar' ? 'تصنيفات المنتجات' : 'Product Categories', route: '/(drawer)/categories' },
             { icon: 'notifications-outline', label: locale === 'ar' ? 'رفع إشعار' : 'Raise Notification', route: '/(drawer)/raise-notification' },
             { icon: 'link-outline', label: locale === 'ar' ? 'مطابقة العملية' : 'Match Operation', route: '/(drawer)/match-operation' },
+            { icon: 'cloud-upload-outline', label: locale === 'ar' ? 'استيراد / تصدير' : 'CSV Import / Export', route: '/(drawer)/csv-import-export' },
           ],
         },
         {

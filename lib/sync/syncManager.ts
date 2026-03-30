@@ -35,6 +35,7 @@ let _currentUserContext: UserContext | null = null;
 async function syncItemCategories(): Promise<void> {
   const data = await api.inventory.categories.list();
   const categories = data?.data || data || [];
+  if (!Array.isArray(categories)) return;
   const db = getDb();
 
   await db.runAsync('DELETE FROM item_categories');
@@ -51,6 +52,7 @@ async function syncItemCategories(): Promise<void> {
 async function syncUnits(): Promise<void> {
   const data = await api.inventory.units.list();
   const units = data?.data || data || [];
+  if (!Array.isArray(units)) return;
   const db = getDb();
 
   await db.runAsync('DELETE FROM units');
@@ -66,6 +68,7 @@ async function syncUnits(): Promise<void> {
 async function syncUnitConversions(): Promise<void> {
   const data = await api.inventory.unitConversions.list();
   const conversions = data?.data || data || [];
+  if (!Array.isArray(conversions)) return;
   const db = getDb();
 
   await db.runAsync('DELETE FROM unit_conversions');
@@ -81,54 +84,56 @@ async function syncUnitConversions(): Promise<void> {
 
 async function syncItems(): Promise<void> {
   const db = getDb();
-  await db.runAsync('DELETE FROM items');
 
+  // Fetch all pages first, only clear + write if fetch succeeds
+  const allItems: any[] = [];
   let page = 1;
   const pageSize = 100;
 
   while (true) {
     const data = await api.inventory.items.list(page, pageSize);
     const items = data?.data || [];
-    if (items.length === 0) break;
-
-    for (const item of items) {
-      await db.runAsync(
-        `INSERT OR REPLACE INTO items
-           (id, sku, name_en, name_ar, category_id, unit_id, is_active, is_consignment,
-            min_stock_level, max_stock_level, unit_symbol, unit_name, category_name, category_name_ar)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          item.id,
-          item.sku,
-          item.nameEn,
-          item.nameAr,
-          item.categoryId ?? null,
-          item.unitId ?? null,
-          item.isActive ? 1 : 0,
-          item.isConsignment ? 1 : 0,
-          item.minStockLevel ?? null,
-          item.maxStockLevel ?? null,
-          item.unit?.symbol ?? null,
-          item.unit?.name ?? null,
-          item.category?.name ?? null,
-          item.category?.nameAr ?? null,
-        ]
-      );
-    }
-
-    if (page >= (data?.totalPages ?? 1)) break;
+    if (items.length === 0 && page === 1) break;
+    allItems.push(...items);
+    if (page >= (data?.totalPages ?? 1) || items.length === 0) break;
     page++;
+  }
+
+  await db.runAsync('DELETE FROM items');
+  for (const item of allItems) {
+    await db.runAsync(
+      `INSERT OR REPLACE INTO items
+         (id, sku, name_en, name_ar, category_id, unit_id, is_active, is_consignment,
+          min_stock_level, max_stock_level, unit_symbol, unit_name, category_name, category_name_ar)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        item.id,
+        item.sku,
+        item.nameEn,
+        item.nameAr,
+        item.categoryId ?? null,
+        item.unitId ?? null,
+        item.isActive ? 1 : 0,
+        item.isConsignment ? 1 : 0,
+        item.minStockLevel ?? null,
+        item.maxStockLevel ?? null,
+        item.unit?.symbol ?? null,
+        item.unit?.name ?? null,
+        item.category?.name ?? null,
+        item.category?.nameAr ?? null,
+      ]
+    );
   }
 
   await updateCacheMeta('items');
 }
 
 async function syncPricePolicies(branchId: string, shelfId?: string, warehouseId?: string): Promise<void> {
-  const db = getDb();
-  await db.runAsync('DELETE FROM price_policies WHERE branch_id = ?', [branchId]);
-
   const data = await api.inventory.pricePolicies.list(branchId, undefined, warehouseId, shelfId);
   const policies = data?.data || data || [];
+  if (!Array.isArray(policies)) return;
+  const db = getDb();
+  await db.runAsync('DELETE FROM price_policies WHERE branch_id = ?', [branchId]);
 
   for (const policy of policies) {
     await db.runAsync(
@@ -156,37 +161,38 @@ async function syncPricePolicies(branchId: string, shelfId?: string, warehouseId
 
 async function syncCustomers(): Promise<void> {
   const db = getDb();
-  await db.runAsync('DELETE FROM customers');
 
+  const allCustomers: any[] = [];
   let page = 1;
   const pageSize = 100;
 
   while (true) {
     const data = await api.sales.customers.list(page, pageSize);
     const customers = data?.data || [];
-    if (customers.length === 0) break;
-
-    for (const c of customers) {
-      await db.runAsync(
-        `INSERT OR REPLACE INTO customers
-           (id, name, name_ar, phone, email, customer_type, is_active, credit_limit_sdg, balance_sdg)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          c.id,
-          c.name,
-          c.nameAr ?? null,
-          c.phone ?? null,
-          c.email ?? null,
-          c.customerType,
-          c.isActive ? 1 : 0,
-          c.creditLimitSdg ? Number(c.creditLimitSdg) : null,
-          c.balanceSdg ? Number(c.balanceSdg) : 0,
-        ]
-      );
-    }
-
-    if (page >= (data?.totalPages ?? 1)) break;
+    if (customers.length === 0 && page === 1) break;
+    allCustomers.push(...customers);
+    if (page >= (data?.totalPages ?? 1) || customers.length === 0) break;
     page++;
+  }
+
+  await db.runAsync('DELETE FROM customers');
+  for (const c of allCustomers) {
+    await db.runAsync(
+      `INSERT OR REPLACE INTO customers
+         (id, name, name_ar, phone, email, customer_type, is_active, credit_limit_sdg, balance_sdg)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        c.id,
+        c.name,
+        c.nameAr ?? null,
+        c.phone ?? null,
+        c.email ?? null,
+        c.customerType,
+        c.isActive ? 1 : 0,
+        c.creditLimitSdg ? Number(c.creditLimitSdg) : null,
+        c.balanceSdg ? Number(c.balanceSdg) : 0,
+      ]
+    );
   }
 
   await updateCacheMeta('customers');
@@ -195,6 +201,7 @@ async function syncCustomers(): Promise<void> {
 async function syncWarehouses(): Promise<void> {
   const data = await api.inventory.warehouses();
   const warehouses = data?.data || data || [];
+  if (!Array.isArray(warehouses)) return;
   const db = getDb();
 
   await db.runAsync('DELETE FROM warehouses');
@@ -210,6 +217,7 @@ async function syncWarehouses(): Promise<void> {
 async function syncShelves(): Promise<void> {
   const data = await api.inventory.shelves();
   const shelves = data?.data || data || [];
+  if (!Array.isArray(shelves)) return;
   const db = getDb();
 
   await db.runAsync('DELETE FROM shelves');

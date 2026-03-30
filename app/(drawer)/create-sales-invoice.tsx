@@ -20,7 +20,8 @@ import { useLocaleStore } from '@/stores/locale';
 import { useAuthStore } from '@/stores/auth';
 import { t } from '@/lib/i18n';
 import { api, showError } from '@/lib/api';
-import { offlineCreateInvoice } from '@/lib/offlineApi';
+import { offlineCreateInvoice, getCachedCustomers, getCachedShelves, getCachedDayCycle } from '@/lib/offlineApi';
+import { connectivity } from '@/lib/connectivity';
 import {
   Invoice,
   InvoiceItem,
@@ -81,18 +82,28 @@ export default function CreateSalesInvoiceScreen() {
   }, [user?.branchId]);
 
   const loadExchangeRate = async () => {
-    try {
-      if (user?.branchId) {
+    if (!user?.branchId) return;
+    if (connectivity.isOnline()) {
+      try {
         const dayCycle = await api.dayCycle.getCurrent(user.branchId);
         if (dayCycle?.exchangeRateUsdSdg) {
           setExchangeRate(dayCycle.exchangeRateUsdSdg);
           setDayCycleOpen(true);
-        } else {
-          setDayCycleOpen(false);
+          return;
         }
+      } catch {
+        // fall through to cache
       }
-    } catch (error) {
-      console.error('Failed to load exchange rate:', error);
+    }
+    try {
+      const cached = await getCachedDayCycle(user.branchId);
+      if (cached?.exchangeRateUsdSdg) {
+        setExchangeRate(cached.exchangeRateUsdSdg);
+        setDayCycleOpen(true);
+      } else {
+        setDayCycleOpen(false);
+      }
+    } catch {
       setDayCycleOpen(false);
     }
   };
@@ -100,11 +111,32 @@ export default function CreateSalesInvoiceScreen() {
   const loadCustomers = async () => {
     setLoadingCustomers(true);
     try {
-      const result = await api.sales.customers.list();
-      const data = result?.data || result || [];
-      setCustomers(Array.isArray(data) ? data : []);
+      if (connectivity.isOnline()) {
+        const result = await api.sales.customers.list();
+        const data = result?.data || result || [];
+        setCustomers(Array.isArray(data) ? data : []);
+      } else {
+        const cached = await getCachedCustomers();
+        setCustomers(cached.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          nameAr: c.name_ar,
+          phone: c.phone,
+          email: c.email,
+          customerType: c.customer_type,
+          creditLimitSdg: c.credit_limit_sdg,
+        })));
+      }
     } catch (error) {
       console.error('Failed to load customers:', error);
+      try {
+        const cached = await getCachedCustomers();
+        setCustomers(cached.map((c: any) => ({
+          id: c.id, name: c.name, nameAr: c.name_ar,
+          phone: c.phone, email: c.email,
+          customerType: c.customer_type,
+        })));
+      } catch { /* ignore */ }
     } finally {
       setLoadingCustomers(false);
     }
@@ -121,7 +153,6 @@ export default function CreateSalesInvoiceScreen() {
 
   const loadShelves = async () => {
     try {
-      // For SHELF_SALES users, auto-assign their own shelf directly from user profile
       if (user?.role === 'SHELF_SALES' && user?.shelf?.id) {
         const userShelf = { id: user.shelf.id, name: user.shelf.name, nameAr: user.shelf.nameAr, code: user.shelf.code };
         setShelves([userShelf]);
@@ -129,10 +160,20 @@ export default function CreateSalesInvoiceScreen() {
         return;
       }
       if (user?.branchId) {
-        const result = await api.inventory.shelves();
-        const shelvesData = result || [];
+        let shelvesData: any[] = [];
+        if (connectivity.isOnline()) {
+          try {
+            const result = await api.inventory.shelves();
+            shelvesData = result || [];
+          } catch {
+            const cached = await getCachedShelves();
+            shelvesData = cached.map((s: any) => ({ id: s.id, name: s.name, nameAr: s.name_ar, code: s.code }));
+          }
+        } else {
+          const cached = await getCachedShelves();
+          shelvesData = cached.map((s: any) => ({ id: s.id, name: s.name, nameAr: s.name_ar, code: s.code }));
+        }
         setShelves(shelvesData);
-        // Auto-select first shelf if available
         if (shelvesData.length > 0 && !selectedShelfId) {
           setSelectedShelfId(shelvesData[0].id);
         }

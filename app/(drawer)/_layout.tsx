@@ -298,6 +298,13 @@ function DrawerLayout() {
         })}
       />
       <Drawer.Screen
+        name="csv-import-export"
+        options={({ route }) => ({
+          title: locale === 'ar' ? 'استيراد / تصدير CSV' : 'CSV Import / Export',
+          drawerItemStyle: { display: 'none' },
+        })}
+      />
+      <Drawer.Screen
         name="sync-status"
         options={({ route }) => ({
           title: locale === 'ar' ? 'حالة المزامنة' : 'Sync Status',
